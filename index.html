@@ -855,11 +855,24 @@ theme: state.settings.theme,
 async function saveQuestionToFirebase(q) {
 if (!window.db) return;
 try {
-// Strip large file data before saving (keep only name/size/type)
+// Keep full file data in local fileStore, save only metadata to Firestore
 const qClean = JSON.parse(JSON.stringify(q));
 qClean.messages = qClean.messages.map(m => {
-if (m.attachment && m.attachment.data && m.attachment.data.length > 10000) {
-return {...m, attachment: { name: m.attachment.name, size: m.attachment.size, type: m.attachment.type, data: null }};
+if (m.attachment && m.attachment.data) {
+// Keep full data in fileStore for local preview
+if (m.attachment.data.length > 100) {
+fileStore[m.attachment.name] = m.attachment.data;
+}
+// Save only metadata + storageUrl to Firestore (no large base64)
+return {...m, attachment: {
+name: m.attachment.name,
+size: m.attachment.size,
+type: m.attachment.type,
+storageUrl: m.attachment.storageUrl || null,
+storagePath: m.attachment.storagePath || null,
+hasFile: true,
+data: null
+}};
 }
 return m;
 });
@@ -964,6 +977,7 @@ state.announcements = annSnap.docs.map(d => d.data());
 // Load direct chats
 const dcSnap = await window.fsGetDocs(window.fsCollection(window.db, 'directChats'));
 dcSnap.docs.forEach(d => { state.directChats[d.id] = d.data().messages || []; });
+restoreFilesFromMessages();
 } catch(e) { console.warn("Firebase load error:", e); }
 }
 function startRealtimeListeners() {
@@ -1877,16 +1891,13 @@ if (dropZone) dropZone.style.borderColor = '#d0ddd3';
 }
 
 function getFileData(name) {
-// Check memory store first
 if (fileStore[name]) return fileStore[name];
-// Check storage URL cache
 if (fileStore[name + '_url']) return fileStore[name + '_url'];
-// Check messages for storageUrl or data
 for (const q of state.questions) {
 for (const m of q.messages) {
 if (m.attachment && m.attachment.name === name) {
-if (m.attachment.storageUrl) return m.attachment.storageUrl;
-if (m.attachment.data && m.attachment.data.length > 100) return m.attachment.data;
+if (m.attachment.storageUrl) { fileStore[name+'_url']=m.attachment.storageUrl; return m.attachment.storageUrl; }
+if (m.attachment.data && m.attachment.data.length > 100) { fileStore[name]=m.attachment.data; return m.attachment.data; }
 }
 }
 }
@@ -1895,6 +1906,18 @@ return null;
 
 function isStorageUrl(str) {
 return str && (str.startsWith('https://') || str.startsWith('http://'));
+}
+
+// Restore any file data from messages into fileStore on load
+function restoreFilesFromMessages() {
+for (const q of state.questions) {
+for (const m of q.messages) {
+if (m.attachment) {
+if (m.attachment.storageUrl) fileStore[m.attachment.name+'_url'] = m.attachment.storageUrl;
+if (m.attachment.data && m.attachment.data.length > 100) fileStore[m.attachment.name] = m.attachment.data;
+}
+}
+}
 }
 
 function fileAttachmentHTML(attachment) {
