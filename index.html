@@ -879,6 +879,36 @@ return m;
 await window.fsSetDoc(window.fsDoc(window.db, 'questions', String(q.id)), qClean);
 } catch(e) { console.warn("Firebase save question error:", e); }
 }
+async function saveTrainingsToFirebase() {
+if (!window.db) return;
+try {
+for (const t of state.trainings) {
+const tClean = {...t};
+// Keep file data in memory, save metadata only
+if (tClean.materials) tClean.materials = tClean.materials.map(m => ({...m, data: m.data ? '(local)' : null}));
+await window.fsSetDoc(window.fsDoc(window.db, 'trainings', String(t.id)), tClean);
+}
+} catch(e) { console.warn(e); }
+}
+async function saveQuizzesToFirebase() {
+if (!window.db) return;
+try {
+for (const q of state.quizzes) {
+await window.fsSetDoc(window.fsDoc(window.db, 'quizzes', String(q.id)), q);
+}
+for (const [qid, results] of Object.entries(state.quizResults)) {
+await window.fsSetDoc(window.fsDoc(window.db, 'quizResults', String(qid)), {results});
+}
+} catch(e) { console.warn(e); }
+}
+async function saveKnowledgeUpdatesToFirebase() {
+if (!window.db) return;
+try {
+for (const u of state.knowledgeUpdates) {
+await window.fsSetDoc(window.fsDoc(window.db, 'knowledgeUpdates', String(u.id)), u);
+}
+} catch(e) { console.warn(e); }
+}
 async function saveAnnouncementsToFirebase() {
 if (!window.db) return;
 try {
@@ -3123,6 +3153,7 @@ function docIcon() { return `<svg viewBox="0 0 14 14" fill="none"><rect x="2" y=
 function chartIcon() { return `<svg viewBox="0 0 14 14" fill="none"><path d="M2 11V7l3-3 3 2 4-5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
 function settingsIcon() { return `<svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.1"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.5 2.5l1.5 1.5M10 10l1.5 1.5M11.5 2.5L10 4M4 10l-1.5 1.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>`; }
 function plusIcon() { return `<svg viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`; }
+function hubIcon() { return `<svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 7h5M7 4.5v5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`; }
 function megaphoneIcon() { return `<svg viewBox="0 0 14 14" fill="none"><path d="M1 5h2v4H1V5zM3 5l7-3v10L3 9V5zM11 6.5h2M11 4l1.5-1M11 9l1.5 1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>`; }
 function chatIcon() { return `<svg viewBox="0 0 14 14" fill="none"><path d="M1 1h12v8H8.5L6 12V9H1V1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>`; }
 // ========== POPUP NOTIFICATION SYSTEM ==========
@@ -3231,6 +3262,520 @@ html += kResults.map(k=>`
 html += '</div>';
 resultsEl.style.display='block';
 resultsEl.innerHTML=html;
+}
+
+
+// ========== KNOWLEDGE HUB — MANAGER ==========
+function renderKnowledgeHub() {
+const totalTrainings = state.trainings.length;
+const totalQuizzes = state.quizzes.length;
+const totalUpdates = state.knowledgeUpdates.length;
+const quizResultsCount = Object.values(state.quizResults).reduce((s,r)=>s+r.length,0);
+return `
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+<div style="background:linear-gradient(135deg,#1a6b3a,#2d9e5f);border-radius:14px;padding:16px;color:white;cursor:pointer;" onclick="document.getElementById('hub-tab-trainings').click()">
+<div style="font-size:11px;opacity:0.75;font-weight:600;text-transform:uppercase;margin-bottom:6px;">הדרכות</div>
+<div style="font-size:28px;font-weight:800;">${totalTrainings}</div>
+<div style="font-size:11px;opacity:0.7;margin-top:4px;">סה"כ הדרכות</div>
+</div>
+<div style="background:linear-gradient(135deg,#2980b9,#3498db);border-radius:14px;padding:16px;color:white;cursor:pointer;" onclick="document.getElementById('hub-tab-quizzes').click()">
+<div style="font-size:11px;opacity:0.75;font-weight:600;text-transform:uppercase;margin-bottom:6px;">מבחני ידע</div>
+<div style="font-size:28px;font-weight:800;">${totalQuizzes}</div>
+<div style="font-size:11px;opacity:0.7;margin-top:4px;">${quizResultsCount} תשובות התקבלו</div>
+</div>
+<div style="background:linear-gradient(135deg,#e67e22,#f39c12);border-radius:14px;padding:16px;color:white;cursor:pointer;" onclick="document.getElementById('hub-tab-updates').click()">
+<div style="font-size:11px;opacity:0.75;font-weight:600;text-transform:uppercase;margin-bottom:6px;">עדכוני ידע</div>
+<div style="font-size:28px;font-weight:800;">${totalUpdates}</div>
+<div style="font-size:11px;opacity:0.7;margin-top:4px;">לפי תחומים</div>
+</div>
+<div style="background:linear-gradient(135deg,#8b2d6b,#c0397a);border-radius:14px;padding:16px;color:white;">
+<div style="font-size:11px;opacity:0.75;font-weight:600;text-transform:uppercase;margin-bottom:6px;">יועצים פעילים</div>
+<div style="font-size:28px;font-weight:800;">${state.advisors.length}</div>
+<div style="font-size:11px;opacity:0.7;margin-top:4px;">במערכת</div>
+</div>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:16px;background:#f0f4f1;border-radius:10px;padding:4px;">
+<button id="hub-tab-trainings" onclick="switchHubTab('trainings')" style="flex:1;padding:9px;border-radius:7px;border:none;background:#1a6b3a;color:white;font-size:13px;font-weight:600;cursor:pointer;">📋 הדרכות</button>
+<button id="hub-tab-quizzes" onclick="switchHubTab('quizzes')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">🧠 מבחני ידע</button>
+<button id="hub-tab-updates" onclick="switchHubTab('updates')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">📰 עדכוני ידע</button>
+</div>
+
+<div id="hub-content">
+${renderHubTrainings()}
+</div>`;
+}
+
+function switchHubTab(tab) {
+['trainings','quizzes','updates'].forEach(t => {
+const btn = document.getElementById('hub-tab-'+t);
+if (btn) { btn.style.background = t===tab?'#1a6b3a':'transparent'; btn.style.color = t===tab?'white':'#4a6650'; }
+});
+const c = document.getElementById('hub-content');
+if (!c) return;
+if (tab==='trainings') c.innerHTML = renderHubTrainings();
+else if (tab==='quizzes') c.innerHTML = renderHubQuizzes();
+else if (tab==='updates') c.innerHTML = renderHubUpdates();
+}
+
+// ===== TRAININGS =====
+function renderHubTrainings() {
+return `
+<div class="card">
+<div class="card-header">
+<span class="card-title">📋 הדרכות שבוצעו</span>
+<button class="btn-sm btn-accent" onclick="openAddTrainingModal()">+ הוסף הדרכה</button>
+</div>
+${state.trainings.length===0?'<div class="empty-state"><p>אין הדרכות עדיין</p></div>':
+state.trainings.sort((a,b)=>b.id-a.id).map(t=>`
+<div style="padding:14px 0;border-bottom:1px solid #eef2ef;display:flex;align-items:flex-start;gap:12px;">
+<div style="width:44px;height:44px;border-radius:12px;background:#e4f4ec;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📋</div>
+<div style="flex:1;min-width:0;">
+<div style="font-size:14px;font-weight:700;color:#1a2e1f;margin-bottom:3px;">${t.title}</div>
+<div style="font-size:12px;color:#8aab92;margin-bottom:5px;">${t.date} · ${t.lecturer} · <span class="tag ${topicTagClass(t.topic)}">${t.topic}</span></div>
+<div style="font-size:13px;color:#4a6650;">${t.summary||''}</div>
+${t.materials&&t.materials.length?`<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">${t.materials.map((m,i)=>`<button onclick="previewTrainingMaterial(${t.id},${i})" style="padding:4px 10px;background:#f0f7f2;border:1px solid #c8deca;border-radius:6px;font-size:11px;color:#1a6b3a;cursor:pointer;">📎 ${m.name}</button>`).join('')}</div>`:''}
+<div style="font-size:11px;color:#8aab92;margin-top:4px;">נצפה על ידי ${(t.viewedBy||[]).length} יועצים</div>
+</div>
+<div style="display:flex;gap:5px;flex-shrink:0;">
+<button class="btn-icon" onclick="renderView('training-detail',${t.id})">פרטים</button>
+<button class="btn-icon" style="color:#e74c3c;border-color:#e74c3c;" onclick="deleteTraining(${t.id})">מחק</button>
+</div>
+</div>`).join('')}
+</div>`;
+}
+
+function openAddTrainingModal() {
+openModal('הוסף הדרכה חדשה', `
+<div class="form-row">
+<div class="form-group"><label class="form-label">כותרת ההדרכה</label><input class="form-input" id="tr-title" placeholder="שם ההדרכה" /></div>
+<div class="form-group"><label class="form-label">תאריך</label><input class="form-input" type="date" id="tr-date" value="${new Date().toISOString().split('T')[0]}" /></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label class="form-label">מרצה / מנחה</label><input class="form-input" id="tr-lecturer" placeholder="שם המרצה" /></div>
+<div class="form-group"><label class="form-label">תחום</label>
+<select class="form-input" id="tr-topic">${state.topics.map(t=>`<option>${t}</option>`).join('')}</select></div>
+</div>
+<div class="form-group"><label class="form-label">סיכום ההדרכה</label>
+<textarea class="form-textarea" id="tr-summary" rows="3" placeholder="תוכן ועיקרי ההדרכה..."></textarea></div>
+<div class="form-group"><label class="form-label">חומרי הדרכה (קבצים)</label>
+<div id="tr-file-drop" style="border:2px dashed #d0ddd3;border-radius:10px;padding:12px;text-align:center;cursor:pointer;background:#fafdf9;" onclick="document.getElementById('tr-file-input').click()" ondragover="event.preventDefault()" ondrop="handleTrainingFileDrop(event)">
+<div style="font-size:20px;">📎</div><div style="font-size:12px;color:#4a6650;">לחץ לצירוף קבצים (מצגות, סיכומים, סרטונים)</div>
+<input type="file" id="tr-file-input" style="display:none;" multiple onchange="handleTrainingFileSelect(this)" />
+</div>
+<div id="tr-files-preview" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"></div>
+</div>
+`, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveTraining()">שמור הדרכה</button>`);
+}
+
+let pendingTrainingFiles = [];
+function handleTrainingFileSelect(input) {
+Array.from(input.files).forEach(f => attachTrainingFile(f));
+}
+function handleTrainingFileDrop(e) {
+e.preventDefault();
+Array.from(e.dataTransfer.files).forEach(f => attachTrainingFile(f));
+}
+function attachTrainingFile(file) {
+if (file.size > 10*1024*1024) { showToast('קובץ גדול מדי — מקסימום 10MB'); return; }
+const reader = new FileReader();
+reader.onload = function(ev) {
+pendingTrainingFiles.push({ name: file.name, size: file.size, type: file.type, data: ev.target.result });
+fileStore[file.name] = ev.target.result;
+const preview = document.getElementById('tr-files-preview');
+if (preview) preview.innerHTML = pendingTrainingFiles.map((f,i)=>`<span style="padding:4px 10px;background:#f0f7f2;border:1px solid #c8deca;border-radius:6px;font-size:11px;color:#1a6b3a;">${getFileIcon(f.name)} ${f.name}</span>`).join('');
+};
+reader.readAsDataURL(file);
+}
+function saveTraining() {
+const title = document.getElementById('tr-title')?.value.trim();
+const date = document.getElementById('tr-date')?.value;
+const lecturer = document.getElementById('tr-lecturer')?.value.trim();
+const topic = document.getElementById('tr-topic')?.value;
+const summary = document.getElementById('tr-summary')?.value.trim();
+if (!title || !lecturer) { showToast('נא למלא כותרת ומרצה'); return; }
+const training = {
+id: Date.now(), title, date, lecturer, topic, summary,
+materials: pendingTrainingFiles.map(f=>({name:f.name,size:f.size,type:f.type,data:f.data})),
+createdAt: new Date().toLocaleDateString('he-IL'),
+viewedBy: []
+};
+state.trainings.push(training);
+pendingTrainingFiles = [];
+saveTrainingsToFirebase();
+closeModal(); showToast('הדרכה נשמרה!'); switchHubTab('trainings');
+}
+function deleteTraining(id) {
+if(!confirm('למחוק הדרכה זו?')) return;
+state.trainings = state.trainings.filter(t=>t.id!==id);
+if(window.db) window.fsDeleteDoc(window.fsDoc(window.db,'trainings',String(id)));
+showToast('הדרכה נמחקה'); switchHubTab('trainings');
+}
+function previewTrainingMaterial(trainingId, materialIdx) {
+const t = state.trainings.find(x=>x.id===trainingId);
+if (!t || !t.materials || !t.materials[materialIdx]) return;
+const m = t.materials[materialIdx];
+if (m.data) { fileStore[m.name]=m.data; previewFile(encodeURIComponent(m.name)); }
+else showToast('חומר לא זמין');
+}
+function renderTrainingDetail(id) {
+const t = state.trainings.find(x=>x.id===id);
+if (!t) return '<p>לא נמצא</p>';
+// Mark as viewed
+const role = state.role==='advisor' ? state.currentAdvisor?.name : null;
+if (role && t.viewedBy && !t.viewedBy.includes(role)) {
+t.viewedBy.push(role);
+saveTrainingsToFirebase();
+}
+return `<div class="card">
+<button class="back-btn" onclick="renderView('knowledge-hub')" style="margin-bottom:14px;">← חזרה</button>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+<div style="font-size:32px;">📋</div>
+<div><h2 style="font-size:18px;font-weight:700;color:#1a2e1f;">${t.title}</h2>
+<div style="font-size:12px;color:#8aab92;">${t.date} · ${t.lecturer} · <span class="tag ${topicTagClass(t.topic)}">${t.topic}</span></div></div>
+</div>
+<div style="font-size:14px;line-height:1.8;color:#1a2e1f;margin-bottom:16px;white-space:pre-wrap;">${t.summary||''}</div>
+${t.materials&&t.materials.length?`
+<div style="border-top:1px solid #eef2ef;padding-top:14px;">
+<div style="font-size:13px;font-weight:700;color:#4a6650;margin-bottom:10px;">חומרי הדרכה:</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;">${t.materials.map((m,i)=>`
+<button onclick="previewTrainingMaterial(${t.id},${i})" style="padding:8px 14px;background:#f0f7f2;border:1.5px solid #c8deca;border-radius:8px;font-size:12px;color:#1a6b3a;cursor:pointer;font-weight:600;">${getFileIcon(m.name)} ${m.name}</button>`).join('')}</div>
+</div>`:''} 
+<div style="margin-top:14px;font-size:12px;color:#8aab92;border-top:1px solid #eef2ef;padding-top:10px;">נצפה על ידי: ${(t.viewedBy||[]).join(', ')||'עדיין לא נצפה'}</div>
+</div>`;
+}
+
+// ===== QUIZZES =====
+function renderHubQuizzes() {
+return `
+<div class="card">
+<div class="card-header">
+<span class="card-title">🧠 מבחני ידע</span>
+${state.role==='manager'?'<button class="btn-sm btn-accent" onclick="openAddQuizModal()">+ מבחן חדש</button>':''}
+</div>
+${state.quizzes.length===0?'<div class="empty-state"><p>אין מבחנים עדיין</p></div>':
+state.quizzes.sort((a,b)=>b.id-a.id).map(q=>{
+const results = state.quizResults[q.id] || [];
+const myResult = state.role==='advisor' ? results.find(r=>r.advisorId===state.currentAdvisor?.id) : null;
+const avgScore = results.length ? Math.round(results.reduce((s,r)=>s+(r.score||0),0)/results.length) : null;
+return `<div style="padding:14px 0;border-bottom:1px solid #eef2ef;display:flex;align-items:center;gap:12px;">
+<div style="width:44px;height:44px;border-radius:12px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🧠</div>
+<div style="flex:1;">
+<div style="font-size:14px;font-weight:700;color:#1a2e1f;">${q.title}</div>
+<div style="font-size:12px;color:#8aab92;">${q.topic} · ${q.questions?q.questions.length:0} שאלות · נוצר ${q.created}</div>
+${avgScore!==null?`<div style="font-size:11px;color:#1a6b3a;margin-top:2px;">ממוצע: ${avgScore}% · ${results.length} נבחנים</div>`:''}
+${myResult?`<div style="margin-top:4px;"><span style="background:#e4f4ec;color:#1a6b3a;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">✓ ציון שלי: ${myResult.score}%</span></div>`:''}
+</div>
+<div style="display:flex;gap:6px;flex-shrink:0;">
+${state.role==='manager'?`
+<button class="btn-icon" onclick="renderView('quiz-results',${q.id})">תוצאות</button>
+<button class="btn-icon" style="color:#e74c3c;border-color:#e74c3c;" onclick="deleteQuiz(${q.id})">מחק</button>`:''}
+${(state.role==='advisor'&&!myResult)?`<button class="btn-sm btn-accent" onclick="renderView('quiz-detail',${q.id})">בצע מבחן</button>`:''}
+${(state.role==='advisor'&&myResult)?`<button class="btn-sm" onclick="renderView('quiz-detail',${q.id})">נסה שוב</button>`:''}
+</div>
+</div>`;}).join('')}
+</div>`;
+}
+
+function openAddQuizModal() {
+openModal('מבחן ידע חדש', `
+<div class="form-row">
+<div class="form-group"><label class="form-label">שם המבחן</label><input class="form-input" id="qz-title" placeholder="כותרת המבחן" /></div>
+<div class="form-group"><label class="form-label">תחום</label>
+<select class="form-input" id="qz-topic">${state.topics.map(t=>`<option>${t}</option>`).join('')}</select></div>
+</div>
+<div id="qz-questions-list" style="margin-top:4px;"></div>
+<button onclick="addQuizQuestion()" style="width:100%;padding:9px;border:2px dashed #d0ddd3;border-radius:8px;background:transparent;color:#4a6650;cursor:pointer;font-size:13px;font-weight:500;margin-top:8px;">+ הוסף שאלה</button>
+`,`<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveQuiz()">שמור מבחן</button>`);
+}
+
+let quizQCounter = 0;
+function addQuizQuestion() {
+quizQCounter++;
+const id = 'qq'+quizQCounter;
+const list = document.getElementById('qz-questions-list');
+if (!list) return;
+const div = document.createElement('div');
+div.id = id;
+div.style.cssText = 'margin-bottom:12px;padding:12px;background:#f7fdf9;border-radius:8px;border:1px solid #d0ddd3;';
+div.innerHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+<label style="font-size:12px;font-weight:600;color:#4a6650;">שאלה ${quizQCounter}</label>
+<select id="${id}-type" onchange="toggleQType('${id}')" style="font-size:11px;border:1px solid #d0ddd3;border-radius:4px;padding:2px 6px;">
+<option value="multi">אמריקאית</option><option value="open">פתוחה</option>
+</select>
+</div>
+<input class="form-input" id="${id}-q" placeholder="כתוב את השאלה כאן..." style="margin-bottom:6px;" />
+<div id="${id}-choices">
+${[1,2,3,4].map(n=>`<div style="display:flex;gap:6px;margin-bottom:4px;">
+<input type="radio" name="${id}-ans" value="${n}" style="margin-top:8px;flex-shrink:0;" />
+<input class="form-input" id="${id}-c${n}" placeholder="תשובה ${n}" style="flex:1;" />
+</div>`).join('')}
+<div style="font-size:11px;color:#8aab92;margin-top:4px;">סמן את התשובה הנכונה עם כפתור הרדיו</div>
+</div>
+<button onclick="document.getElementById('${id}').remove()" style="font-size:11px;color:#e74c3c;border:none;background:none;cursor:pointer;margin-top:4px;">× הסר שאלה</button>`;
+list.appendChild(div);
+}
+function toggleQType(id) {
+const type = document.getElementById(id+'-type')?.value;
+const choices = document.getElementById(id+'-choices');
+if (choices) choices.style.display = type==='open'?'none':'block';
+}
+function saveQuiz() {
+const title = document.getElementById('qz-title')?.value.trim();
+const topic = document.getElementById('qz-topic')?.value;
+if (!title) { showToast('נא למלא שם מבחן'); return; }
+const questions = [];
+document.querySelectorAll('[id^="qq"]').forEach(div => {
+const id = div.id;
+const q = document.getElementById(id+'-q')?.value.trim();
+const type = document.getElementById(id+'-type')?.value;
+if (!q) return;
+if (type==='open') {
+questions.push({ q, type:'open' });
+} else {
+const choices = [1,2,3,4].map(n=>document.getElementById(id+'-c'+n)?.value.trim()).filter(Boolean);
+const correct = document.querySelector(`input[name="${id}-ans"]:checked`)?.value;
+questions.push({ q, type:'multi', choices, correct: correct ? parseInt(correct)-1 : 0 });
+}
+});
+if (!questions.length) { showToast('נא להוסיף לפחות שאלה אחת'); return; }
+const quiz = { id: Date.now(), title, topic, questions, created: new Date().toLocaleDateString('he-IL') };
+state.quizzes.push(quiz);
+state.quizResults[quiz.id] = [];
+saveQuizzesToFirebase();
+quizQCounter = 0;
+closeModal(); showToast('מבחן נשמר!'); switchHubTab('quizzes');
+}
+function deleteQuiz(id) {
+if(!confirm('למחוק מבחן זה?')) return;
+state.quizzes = state.quizzes.filter(q=>q.id!==id);
+delete state.quizResults[id];
+if(window.db) { window.fsDeleteDoc(window.fsDoc(window.db,'quizzes',String(id))); window.fsDeleteDoc(window.fsDoc(window.db,'quizResults',String(id))); }
+showToast('מבחן נמחק'); switchHubTab('quizzes');
+}
+function renderQuizDetail(id) {
+const quiz = state.quizzes.find(q=>q.id===id);
+if (!quiz) return '<p>לא נמצא</p>';
+return `<div class="card">
+<button class="back-btn" onclick="renderView(state.role==='manager'?'knowledge-hub':'advisor-knowledge-hub')" style="margin-bottom:14px;">← חזרה</button>
+<h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">${quiz.title}</h2>
+<div style="font-size:12px;color:#8aab92;margin-bottom:20px;"><span class="tag ${topicTagClass(quiz.topic)}">${quiz.topic}</span> · ${quiz.questions.length} שאלות</div>
+${quiz.questions.map((q,qi)=>`
+<div style="margin-bottom:20px;padding:14px;background:#f7fdf9;border-radius:10px;border:1px solid #d0ddd3;">
+<div style="font-size:14px;font-weight:600;color:#1a2e1f;margin-bottom:10px;">${qi+1}. ${q.q}</div>
+${q.type==='open'
+? `<textarea id="qz-ans-${qi}" class="form-textarea" rows="2" placeholder="כתוב תשובתך..."></textarea>`
+: q.choices.map((c,ci)=>`<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:7px;cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#e8f2ea'" onmouseout="this.style.background='transparent'">
+<input type="radio" name="qz-q${qi}" value="${ci}" style="cursor:pointer;" />
+<span style="font-size:13px;">${c}</span>
+</label>`).join('')}
+</div>`).join('')}
+<button class="btn-sm btn-accent" style="width:100%;padding:11px;font-size:14px;" onclick="submitQuiz(${id})">שלח מבחן ✓</button>
+</div>`;
+}
+function submitQuiz(quizId) {
+const quiz = state.quizzes.find(q=>q.id===quizId);
+if (!quiz) return;
+let correct = 0;
+const answers = quiz.questions.map((q,qi)=>{
+if (q.type==='open') {
+return { qi, answer: document.getElementById('qz-ans-'+qi)?.value.trim()||'', type:'open' };
+} else {
+const sel = document.querySelector(`input[name="qz-q${qi}"]:checked`);
+const ans = sel ? parseInt(sel.value) : -1;
+if (ans===q.correct) correct++;
+return { qi, answer: ans, correct: ans===q.correct, type:'multi' };
+}
+});
+const multiQ = quiz.questions.filter(q=>q.type==='multi').length;
+const score = multiQ > 0 ? Math.round(correct/multiQ*100) : null;
+if (!state.quizResults[quizId]) state.quizResults[quizId] = [];
+const resultEntry = {
+advisorId: state.currentAdvisor?.id || 'manager',
+advisorName: state.currentAdvisor?.name || 'מנהל',
+score, answers,
+date: new Date().toLocaleDateString('he-IL'),
+time: new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')
+};
+// Remove old result and add new
+state.quizResults[quizId] = state.quizResults[quizId].filter(r=>r.advisorId!==resultEntry.advisorId);
+state.quizResults[quizId].push(resultEntry);
+saveQuizzesToFirebase();
+// Show result
+const content = document.getElementById('page-content');
+if (content) content.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
+<div style="font-size:48px;margin-bottom:16px;">${score===null?'📝':score>=80?'🌟':score>=60?'👍':'💪'}</div>
+<h2 style="font-size:22px;font-weight:700;color:#1a2e1f;margin-bottom:8px;">${score!==null?'ציון: '+score+'%':'המבחן הוגש!'}</h2>
+<div style="font-size:14px;color:#4a6650;margin-bottom:20px;">${score!==null?(correct+' מתוך '+multiQ+' תשובות נכונות'):'שאלות הפתוחות יבדקו על ידי המנהל'}</div>
+${score!==null&&score<100?`<div style="background:#f0f7f2;border-radius:12px;padding:16px;margin-bottom:20px;">
+${quiz.questions.filter((_,qi)=>answers[qi]&&!answers[qi].correct&&answers[qi].type==='multi').map((q,i)=>`<div style="text-align:right;font-size:13px;color:#e74c3c;margin-bottom:4px;">✗ ${q.q} — תשובה נכונה: ${q.choices[q.correct]||''}</div>`).join('')}
+</div>`:''}
+<button class="btn-sm btn-accent" onclick="renderView(state.role==='manager'?'knowledge-hub':'advisor-knowledge-hub')" style="padding:10px 24px;">← חזרה למרכז ידע</button>
+</div>`;
+}
+function renderQuizResults(id) {
+const quiz = state.quizzes.find(q=>q.id===id);
+if (!quiz) return '<p>לא נמצא</p>';
+const results = state.quizResults[id] || [];
+const avgScore = results.filter(r=>r.score!==null).length ? Math.round(results.filter(r=>r.score!==null).reduce((s,r)=>s+r.score,0)/results.filter(r=>r.score!==null).length) : null;
+return `<div class="card">
+<button class="back-btn" onclick="renderView('knowledge-hub')" style="margin-bottom:14px;">← חזרה</button>
+<h2 style="font-size:17px;font-weight:700;margin-bottom:4px;">${quiz.title} — תוצאות</h2>
+<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+<div style="background:#e4f4ec;border-radius:8px;padding:10px 14px;font-size:13px;"><span style="font-weight:700;color:#1a6b3a;">${results.length}</span> נבחנו</div>
+${avgScore!==null?`<div style="background:#e4f4ec;border-radius:8px;padding:10px 14px;font-size:13px;"><span style="font-weight:700;color:#1a6b3a;">${avgScore}%</span> ממוצע</div>`:''}
+<div style="background:#f0f7f2;border-radius:8px;padding:10px 14px;font-size:13px;">${state.advisors.length - results.length} לא נבחנו עדיין</div>
+</div>
+${results.length===0?'<div class="empty-state"><p>אין תוצאות עדיין</p></div>':
+results.map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eef2ef;">
+<div style="width:36px;height:36px;border-radius:10px;background:#e4f4ec;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1a6b3a;flex-shrink:0;">${(r.advisorName||'?')[0]}</div>
+<div style="flex:1;"><div style="font-size:13px;font-weight:600;">${r.advisorName}</div><div style="font-size:11px;color:#8aab92;">${r.date} ${r.time}</div></div>
+<div style="font-size:16px;font-weight:700;color:${r.score>=80?'#1a6b3a':r.score>=60?'#e67e22':'#e74c3c'}">${r.score!==null?r.score+'%':'פתוחות'}</div>
+</div>`).join('')}
+</div>`;
+}
+
+// ===== KNOWLEDGE UPDATES =====
+function renderHubUpdates() {
+const byTopic = {};
+state.topics.forEach(t => byTopic[t]=[]);
+state.knowledgeUpdates.forEach(u => { if(byTopic[u.topic]) byTopic[u.topic].push(u); });
+return `
+<div class="card">
+<div class="card-header">
+<span class="card-title">📰 עדכוני ידע לפי תחומים</span>
+${state.role==='manager'?'<button class="btn-sm btn-accent" onclick="openAddKnowledgeUpdateModal()">+ עדכון חדש</button>':''}
+</div>
+${state.topics.filter(t=>byTopic[t]&&byTopic[t].length>0).map(t=>`
+<div style="margin-bottom:16px;">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+<span class="tag ${topicTagClass(t)}">${t}</span>
+<span style="font-size:11px;color:#8aab92;">${byTopic[t].length} עדכונים</span>
+</div>
+${byTopic[t].sort((a,b)=>b.id-a.id).map(u=>`
+<div style="padding:10px 12px;background:#f7fdf9;border-radius:8px;border-right:3px solid ${topicTagColor(u.topic)};margin-bottom:6px;display:flex;align-items:flex-start;gap:10px;">
+<div style="flex:1;">
+<div style="font-size:13px;font-weight:600;color:#1a2e1f;">${u.title}</div>
+<div style="font-size:12px;color:#4a6650;margin-top:3px;">${u.content||''}</div>
+<div style="font-size:10px;color:#8aab92;margin-top:4px;">${u.date}${u.source?' · מקור: '+u.source:''}</div>
+</div>
+${state.role==='manager'?`<button onclick="deleteKnowledgeUpdate(${u.id})" style="color:#e74c3c;font-size:11px;border:none;background:none;cursor:pointer;flex-shrink:0;">✕</button>`:''}
+</div>`).join('')}
+</div>`).join('')}
+${state.knowledgeUpdates.length===0?'<div class="empty-state"><p>אין עדכוני ידע עדיין</p></div>':''}
+</div>`;
+}
+
+function topicTagColor(topic) {
+const map={'תואר ראשון':'#2980b9','תואר שני':'#1a6b3a','הסבה להוראה':'#e67e22','לימודי תעודה':'#8b2d6b','אחר':'#888'};
+return map[topic]||'#888';
+}
+
+function openAddKnowledgeUpdateModal() {
+openModal('עדכון ידע חדש', `
+<div class="form-group"><label class="form-label">כותרת העדכון</label><input class="form-input" id="ku-title" placeholder="למשל: שינויים בתנאי קבלה לתואר שני" /></div>
+<div class="form-row">
+<div class="form-group"><label class="form-label">תחום</label>
+<select class="form-input" id="ku-topic">${state.topics.map(t=>`<option>${t}</option>`).join('')}</select></div>
+<div class="form-group"><label class="form-label">מקור (אופציונלי)</label><input class="form-input" id="ku-source" placeholder="מחלקה / אתר / מסמך" /></div>
+</div>
+<div class="form-group"><label class="form-label">תוכן העדכון</label>
+<textarea class="form-textarea" id="ku-content" rows="3" placeholder="פרטי העדכון..."></textarea></div>
+`,`<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveKnowledgeUpdate()">פרסם</button>`);
+}
+function saveKnowledgeUpdate() {
+const title = document.getElementById('ku-title')?.value.trim();
+const topic = document.getElementById('ku-topic')?.value;
+const content = document.getElementById('ku-content')?.value.trim();
+const source = document.getElementById('ku-source')?.value.trim();
+if (!title||!content) { showToast('נא למלא כותרת ותוכן'); return; }
+const u = { id: Date.now(), title, topic, content, source, date: new Date().toLocaleDateString('he-IL') };
+state.knowledgeUpdates.push(u);
+saveKnowledgeUpdatesToFirebase();
+closeModal(); showToast('עדכון פורסם!'); switchHubTab('updates');
+}
+function deleteKnowledgeUpdate(id) {
+state.knowledgeUpdates = state.knowledgeUpdates.filter(u=>u.id!==id);
+if(window.db) window.fsDeleteDoc(window.fsDoc(window.db,'knowledgeUpdates',String(id)));
+showToast('עדכון נמחק'); switchHubTab('updates');
+}
+
+// ===== ADVISOR KNOWLEDGE HUB =====
+function renderAdvisorKnowledgeHub() {
+const myQuizResults = state.quizzes.map(q=>({quiz:q, result:(state.quizResults[q.id]||[]).find(r=>r.advisorId===state.currentAdvisor?.id)}));
+const done = myQuizResults.filter(x=>x.result).length;
+const pending = myQuizResults.filter(x=>!x.result).length;
+return `
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;">
+<div style="background:linear-gradient(135deg,#1a6b3a,#2d9e5f);border-radius:14px;padding:16px;color:white;">
+<div style="font-size:10px;opacity:0.75;font-weight:600;text-transform:uppercase;margin-bottom:6px;">הדרכות זמינות</div>
+<div style="font-size:26px;font-weight:800;">${state.trainings.length}</div>
+</div>
+<div style="background:linear-gradient(135deg,#2980b9,#3498db);border-radius:14px;padding:16px;color:white;">
+<div style="font-size:10px;opacity:0.75;font-weight:600;text-transform:uppercase;margin-bottom:6px;">מבחנים הושלמו</div>
+<div style="font-size:26px;font-weight:800;">${done}</div>
+</div>
+<div style="background:linear-gradient(135deg,#e67e22,#f39c12);border-radius:14px;padding:16px;color:white;">
+<div style="font-size:10px;opacity:0.75;font-weight:600;text-transform:uppercase;margin-bottom:6px;">ממתינים לי</div>
+<div style="font-size:26px;font-weight:800;">${pending}</div>
+</div>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:16px;background:#f0f4f1;border-radius:10px;padding:4px;">
+<button id="ahub-tab-trainings" onclick="switchAdvisorHubTab('trainings')" style="flex:1;padding:9px;border-radius:7px;border:none;background:#1a6b3a;color:white;font-size:13px;font-weight:600;cursor:pointer;">📋 הדרכות</button>
+<button id="ahub-tab-quizzes" onclick="switchAdvisorHubTab('quizzes')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">🧠 מבחנים${pending>0?` <span style="background:#e74c3c;color:white;border-radius:10px;padding:1px 6px;font-size:10px;">${pending}</span>`:''}</button>
+<button id="ahub-tab-updates" onclick="switchAdvisorHubTab('updates')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">📰 עדכוני ידע</button>
+</div>
+<div id="ahub-content">${renderAdvisorTrainings()}</div>`;
+}
+function switchAdvisorHubTab(tab) {
+['trainings','quizzes','updates'].forEach(t=>{
+const btn=document.getElementById('ahub-tab-'+t);
+if(btn){btn.style.background=t===tab?'#1a6b3a':'transparent';btn.style.color=t===tab?'white':'#4a6650';}
+});
+const c=document.getElementById('ahub-content');
+if(!c)return;
+if(tab==='trainings') c.innerHTML=renderAdvisorTrainings();
+else if(tab==='quizzes') c.innerHTML=renderAdvisorQuizzes();
+else if(tab==='updates') c.innerHTML=renderHubUpdates();
+}
+function renderAdvisorTrainings() {
+return `<div class="card">
+<div class="card-title" style="margin-bottom:14px;">הדרכות שבוצעו</div>
+${state.trainings.length===0?'<div class="empty-state"><p>אין הדרכות עדיין</p></div>':
+state.trainings.sort((a,b)=>b.id-a.id).map(t=>`
+<div style="padding:12px 0;border-bottom:1px solid #eef2ef;display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="renderView('training-detail',${t.id})">
+<div style="width:40px;height:40px;border-radius:10px;background:#e4f4ec;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📋</div>
+<div style="flex:1;">
+<div style="font-size:13px;font-weight:600;color:#1a2e1f;">${t.title}</div>
+<div style="font-size:11px;color:#8aab92;">${t.date} · ${t.lecturer} · <span class="tag ${topicTagClass(t.topic)}">${t.topic}</span></div>
+${t.materials&&t.materials.length?`<div style="font-size:11px;color:#1a6b3a;margin-top:2px;">📎 ${t.materials.length} קבצים</div>`:''}
+</div>
+<span style="font-size:11px;color:#8aab92;">לפרטים ←</span>
+</div>`).join('')}
+</div>`;
+}
+function renderAdvisorQuizzes() {
+return `<div class="card">
+<div class="card-title" style="margin-bottom:14px;">מבחני ידע</div>
+${state.quizzes.length===0?'<div class="empty-state"><p>אין מבחנים עדיין</p></div>':
+state.quizzes.sort((a,b)=>b.id-a.id).map(q=>{
+const result=(state.quizResults[q.id]||[]).find(r=>r.advisorId===state.currentAdvisor?.id);
+return `<div style="padding:12px 0;border-bottom:1px solid #eef2ef;display:flex;align-items:center;gap:12px;">
+<div style="width:40px;height:40px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🧠</div>
+<div style="flex:1;">
+<div style="font-size:13px;font-weight:600;color:#1a2e1f;">${q.title}</div>
+<div style="font-size:11px;color:#8aab92;"><span class="tag ${topicTagClass(q.topic)}">${q.topic}</span> · ${q.questions.length} שאלות</div>
+${result?`<span style="background:#e4f4ec;color:#1a6b3a;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-top:4px;display:inline-block;">✓ ציון: ${result.score!==null?result.score+'%':'הוגש'}</span>`:''}
+</div>
+${!result
+?`<button class="btn-sm btn-accent" onclick="renderView('quiz-detail',${q.id})">בצע מבחן</button>`
+:`<button class="btn-sm" onclick="renderView('quiz-detail',${q.id})">נסה שוב</button>`}
+</div>`;}).join('')}
+</div>`;
 }
 
 // ========== BEAR MASCOT ==========
