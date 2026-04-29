@@ -1807,6 +1807,9 @@ renderView('advisor-inbox');
 }
 // ========== FILE UPLOAD ==========
 let pendingFile = null;
+// In-memory file store (survives current session)
+const fileStore = {};
+
 function handleFileSelect(input) {
 const file = input.files[0];
 if (file) attachFile(file);
@@ -1822,7 +1825,10 @@ function attachFile(file) {
 if (file.size > 5 * 1024 * 1024) { showToast('הקובץ גדול מדי (מקסימום 5MB)'); return; }
 const reader = new FileReader();
 reader.onload = function(e) {
-pendingFile = { name: file.name, size: file.size, type: file.type, data: e.target.result };
+const data = e.target.result;
+// Store full data in memory by filename key
+fileStore[file.name] = data;
+pendingFile = { name: file.name, size: file.size, type: file.type, data: data };
 const icons = { 'application/pdf': '📕', 'image': '🖼️', 'application/vnd.openxmlformats': '📊', 'application/msword': '📝', 'text': '📄' };
 let icon = '📎';
 for (const [k, v] of Object.entries(icons)) { if (file.type.startsWith(k)) { icon = v; break; } }
@@ -1845,42 +1851,98 @@ if (input) input.value = '';
 const dropZone = document.getElementById('file-drop-zone');
 if (dropZone) dropZone.style.borderColor = '#d0ddd3';
 }
+
+function getFileData(name) {
+// Check memory store first, then messages
+if (fileStore[name]) return fileStore[name];
+for (const q of state.questions) {
+for (const m of q.messages) {
+if (m.attachment && m.attachment.name === name && m.attachment.data && m.attachment.data.length > 100) {
+return m.attachment.data;
+}
+}
+}
+return null;
+}
+
 function fileAttachmentHTML(attachment) {
 if (!attachment) return '';
-const icons = {'pdf':'📕','image':'🖼️','doc':'📝','xls':'📊','txt':'📄'};
+const isImage = attachment.type && attachment.type.startsWith('image');
+const isPdf = attachment.type && attachment.type.includes('pdf') || (attachment.name||'').toLowerCase().endsWith('.pdf');
+const icons = {'pdf':'📕','image':'🖼️','doc':'📝','xls':'📊','txt':'📄','docx':'📝','xlsx':'📊'};
 let icon = '📎';
 for (const [k,v] of Object.entries(icons)) {
-if (attachment.type && (attachment.type.includes(k) || (attachment.name||'').toLowerCase().endsWith(k))) { icon = v; break; }
+if ((attachment.type||'').includes(k) || (attachment.name||'').toLowerCase().endsWith('.'+k)) { icon = v; break; }
 }
-const hasData = attachment.data && attachment.data.length > 10;
-return '<div style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.18);border-radius:8px;border:1px solid rgba(255,255,255,0.3);">' +
-'<div style="display:flex;align-items:center;gap:8px;">' +
-'<span style="font-size:18px;">' + icon + '</span>' +
-'<div style="flex:1;">' +
-'<div style="font-size:12px;font-weight:600;">' + (attachment.name||'קובץ') + '</div>' +
-'<div style="font-size:10px;opacity:0.8;">' + ((attachment.size||0)/1024).toFixed(1) + ' KB</div>' +
+const nameEnc = encodeURIComponent(attachment.name||'file');
+const hasData = !!(attachment.data && attachment.data.length > 100) || !!fileStore[attachment.name];
+const canPreview = isImage || isPdf;
+
+return '<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.18);border-radius:10px;border:1px solid rgba(255,255,255,0.3);">' +
+'<div style="display:flex;align-items:center;gap:10px;">' +
+'<span style="font-size:20px;">' + icon + '</span>' +
+'<div style="flex:1;min-width:0;">' +
+'<div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (attachment.name||'קובץ') + '</div>' +
+'<div style="font-size:10px;opacity:0.75;">' + ((attachment.size||0)/1024).toFixed(1) + ' KB</div>' +
 '</div>' +
-(hasData ? '<button onclick="downloadFile(this)" data-name="' + encodeURIComponent(attachment.name||'file') + '" data-data="' + encodeURIComponent(attachment.data.substring(0,50)) + '" style="padding:4px 10px;background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.4);border-radius:6px;color:white;font-size:11px;cursor:pointer;font-weight:600;">⬇ הורד</button>' : '<span style="font-size:10px;opacity:0.6;">לא זמין</span>') +
+'<div style="display:flex;gap:5px;flex-shrink:0;">' +
+(canPreview ? '<button onclick="previewFile(\'' + nameEnc + '\')" style="padding:5px 10px;background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);border-radius:6px;color:white;font-size:11px;cursor:pointer;font-weight:600;" title="תצוגה מקדימה">👁 צפה</button>' : '') +
+(hasData ? '<button onclick="downloadFileByName(\'' + nameEnc + '\')" style="padding:5px 10px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);border-radius:6px;color:white;font-size:11px;cursor:pointer;font-weight:600;" title="הורד קובץ">⬇ הורד</button>' : '<span style="font-size:10px;opacity:0.5;padding:4px;">לא זמין</span>') +
+'</div>' +
 '</div></div>';
+}
+
+function downloadFileByName(nameEnc) {
+const name = decodeURIComponent(nameEnc);
+const data = getFileData(name);
+if (data) {
+const a = document.createElement('a');
+a.href = data; a.download = name;
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+showToast('מוריד: ' + name);
+} else {
+showToast('הקובץ לא זמין — נשמר רק בסשן בו הועלה');
+}
+}
+
+function previewFile(nameEnc) {
+const name = decodeURIComponent(nameEnc);
+const data = getFileData(name);
+if (!data) { showToast('תצוגה מקדימה לא זמינה'); return; }
+const isImage = data.startsWith('data:image');
+const isPdf = data.startsWith('data:application/pdf') || name.toLowerCase().endsWith('.pdf');
+// Build preview modal
+const overlay = document.createElement('div');
+overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+overlay.onclick = (e) => { if(e.target===overlay) overlay.remove(); };
+let innerHTML = '';
+if (isImage) {
+innerHTML = '<img src="' + data + '" style="max-width:90vw;max-height:80vh;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.5);" />';
+} else if (isPdf) {
+innerHTML = '<iframe src="' + data + '" style="width:min(90vw,800px);height:80vh;border:none;border-radius:10px;" ></iframe>';
+} else {
+// Text preview
+try {
+const text = atob(data.split(',')[1]);
+innerHTML = '<pre style="background:#fff;padding:20px;border-radius:10px;max-width:80vw;max-height:70vh;overflow:auto;font-size:13px;line-height:1.6;direction:ltr;">' + text.substring(0,3000) + (text.length>3000?'\n...':'') + '</pre>';
+} catch(e) {
+innerHTML = '<div style="color:white;font-size:14px;">לא ניתן להציג קובץ מסוג זה</div>';
+}
+}
+overlay.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;">' +
+'<div style="display:flex;gap:10px;align-items:center;">' +
+'<span style="color:white;font-size:14px;font-weight:600;">' + name + '</span>' +
+'<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:6px 14px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:8px;color:white;cursor:pointer;font-size:12px;">✕ סגור</button>' +
+'<button onclick="downloadFileByName(\'' + nameEnc + '\')" style="padding:6px 14px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-size:12px;">⬇ הורד</button>' +
+'</div>' +
+innerHTML +
+'</div>';
+document.body.appendChild(overlay);
 }
 
 function downloadFile(btn) {
 const name = decodeURIComponent(btn.getAttribute('data-name'));
-for (const q of state.questions) {
-for (const m of q.messages) {
-if (m.attachment && m.attachment.name === name && m.attachment.data) {
-const a = document.createElement('a');
-a.href = m.attachment.data;
-a.download = name;
-document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-showToast('מוריד: ' + name);
-return;
-}
-}
-}
-showToast('הקובץ לא זמין להורדה');
+downloadFileByName(encodeURIComponent(name));
 }
 
 function downloadAttachment(nameEncoded, hasData) {
