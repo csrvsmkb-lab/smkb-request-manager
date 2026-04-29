@@ -986,18 +986,26 @@ if (!window.db) return;
 window.fsOnSnapshot(window.fsCollection(window.db, 'questions'), (snap) => {
 const newQs = snap.docs.map(d => d.data());
 const prevQs = state.questions;
-if (JSON.stringify(newQs) !== JSON.stringify(prevQs)) {
+// Always process — don't skip based on stringify comparison
+{
 // Detect new manager reply for advisor
 if (state.role === 'advisor' && state.currentAdvisor) {
 newQs.forEach(newQ => {
 if (newQ.advisorId !== state.currentAdvisor.id) return;
 const oldQ = prevQs.find(q => q.id === newQ.id);
-if (!oldQ) return;
+if (!oldQ) {
+// Brand new question that got a reply already — show popup
+const managerMsgs = newQ.messages.filter(m => m.from === 'manager');
+if (managerMsgs.length > 0) {
+showPopup('תשובה חדשה ממנהל המרכז', newQ.subject + ': ' + managerMsgs[managerMsgs.length-1].text.substring(0,60), 'reply', () => openAdvisorThread(newQ.id));
+}
+return;
+}
 const newManagerMsgs = newQ.messages.filter(m => m.from === 'manager').length;
-const oldManagerMsgs = oldQ.messages.filter(m => m.from === 'manager').length;
+const oldManagerMsgs = oldQ.messages ? oldQ.messages.filter(m => m.from === 'manager').length : 0;
 if (newManagerMsgs > oldManagerMsgs) {
 const lastMsg = newQ.messages.filter(m=>m.from==='manager').pop();
-showPopup('תשובה חדשה ממנהל המרכז', newQ.subject + ': ' + (lastMsg?.text||'').substring(0,60), 'reply', () => openAdvisorThread(newQ.id));
+showPopup('תשובה חדשה ממנהל המרכז 📬', newQ.subject + ': ' + (lastMsg?.text||'').substring(0,60), 'reply', () => openAdvisorThread(newQ.id));
 playNotifSound('reply');
 }
 });
@@ -1311,6 +1319,12 @@ total: all.filter(q => q.advisorId === a.id).length,
 open: all.filter(q => q.advisorId === a.id && q.status === 'open').length,
 })).sort((a,b) => b.total - a.total);
 return `
+<!-- Global search -->
+<div class="search-bar" style="margin-bottom:18px;">
+<input class="search-input" id="global-search" placeholder="🔍 חיפוש גלובלי — שאלות, סטודנטים, יועצים, בסיס ידע..." oninput="globalSearch()" style="font-size:14px;" />
+<button class="btn-sm" onclick="document.getElementById('global-search').value='';document.getElementById('global-results').innerHTML='';document.getElementById('global-results').style.display='none'">נקה</button>
+</div>
+<div id="global-results" style="display:none;margin-bottom:16px;"></div>
 <div class="metrics-grid">
 <div class="metric"><div class="metric-label">סה"כ שאלות</div><div class="metric-value">${all.length}</div><div class="metric-sub">כל הזמנים</div></div>
 <div class="metric"><div class="metric-label">שאלות פתוחות</div><div class="metric-value metric-down">${open}</div><div class="metric-sub">ממתינות למענה</div></div>
@@ -1348,18 +1362,67 @@ ${a.name}
 </table>
 </div>
 </div>
-<div class="card" style="margin-top:0;">
-<div class="card-header"><span class="card-title">שאלות אחרונות פתוחות</span><button class="btn-sm" onclick="renderView('inbox')">כל השאלות →</button></div>
-${state.questions.filter(q=>q.status==='open').slice(0,3).map(q => `
-<div class="inbox-item" onclick="openThread(${q.id})">
-${advisorAvatar(q)}
-<div class="inbox-info">
-<div class="inbox-top"><span class="inbox-from">${q.advisorName} — ${q.studentName}</span><span class="inbox-time">${q.date.split(' ')[0]}</span></div>
-<div class="inbox-subject">${q.subject}</div>
-<div class="inbox-tags"><span class="tag ${topicTagClass(q.topic)}">${q.topic}</span></div>
+<!-- Section 1: Unanswered (last msg from advisor) -->
+<div class="card" style="margin-top:0;border-right:4px solid #e74c3c;">
+<div class="card-header">
+  <span class="card-title" style="color:#e74c3c;">🔴 טרם טופלו — ממתינות לתשובתך</span>
+  <button class="btn-sm" onclick="renderView('inbox-filter-open')">הכל →</button>
 </div>
+${(()=>{
+  const unanswered = state.questions.filter(q=>q.status==='open' && q.messages[q.messages.length-1].from==='advisor').sort((a,b)=>b.id-a.id).slice(0,5);
+  if(!unanswered.length) return '<div class="empty-state"><p>אין שאלות הממתינות לתשובתך</p></div>';
+  return unanswered.map(q=>`
+    <div class="inbox-item" onclick="openThread(${q.id})" style="border-right:3px solid #e74c3c;">
+      ${advisorAvatar(q)}
+      <div class="inbox-info">
+        <div class="inbox-top"><span class="inbox-from" style="font-weight:700;">${q.advisorName} — ${q.studentName}</span><span class="inbox-time">${q.date.split(' ')[0]}</span></div>
+        <div class="inbox-subject">${q.subject}</div>
+        <div class="inbox-tags"><span class="tag ${topicTagClass(q.topic)}">${q.topic}</span>${dueDateBadge(q)}</div>
+      </div>
+      <div class="unread-indicator"></div>
+    </div>`).join('');
+})()}
 </div>
-`).join('') || '<div class="empty-state"><p>אין שאלות פתוחות</p></div>'}
+
+<!-- Section 2: Awaiting advisor reply (last msg from manager) -->
+<div class="card" style="margin-top:0;border-right:4px solid #e67e22;">
+<div class="card-header">
+  <span class="card-title" style="color:#e67e22;">🟡 בטיפול — ממתין לתגובת היועץ</span>
+</div>
+${(()=>{
+  const waiting = state.questions.filter(q=>q.status==='open' && q.messages[q.messages.length-1].from==='manager').sort((a,b)=>b.id-a.id).slice(0,5);
+  if(!waiting.length) return '<div class="empty-state"><p>אין שאלות בהמתנה לתגובת יועץ</p></div>';
+  return waiting.map(q=>`
+    <div class="inbox-item" onclick="openThread(${q.id})" style="border-right:3px solid #e67e22;">
+      ${advisorAvatar(q)}
+      <div class="inbox-info">
+        <div class="inbox-top"><span class="inbox-from">${q.advisorName} — ${q.studentName}</span><span class="inbox-time">${q.date.split(' ')[0]}</span></div>
+        <div class="inbox-subject">${q.subject}</div>
+        <div class="inbox-tags"><span class="tag ${topicTagClass(q.topic)}">${q.topic}</span></div>
+      </div>
+    </div>`).join('');
+})()}
+</div>
+
+<!-- Section 3: Closed -->
+<div class="card" style="margin-top:0;border-right:4px solid #1a6b3a;">
+<div class="card-header">
+  <span class="card-title" style="color:#1a6b3a;">✅ טופלו ונסגרו</span>
+  <button class="btn-sm" onclick="renderView('inbox')" style="font-size:11px;">הכל →</button>
+</div>
+${(()=>{
+  const closed = state.questions.filter(q=>q.status==='closed').sort((a,b)=>b.id-a.id).slice(0,4);
+  if(!closed.length) return '<div class="empty-state"><p>אין שאלות סגורות עדיין</p></div>';
+  return closed.map(q=>`
+    <div class="inbox-item" onclick="openThread(${q.id})" style="opacity:0.75;">
+      ${advisorAvatar(q)}
+      <div class="inbox-info">
+        <div class="inbox-top"><span class="inbox-from">${q.advisorName} — ${q.studentName}</span><span class="inbox-time">${q.date.split(' ')[0]}</span></div>
+        <div class="inbox-subject">${q.subject}</div>
+        <div class="inbox-tags"><span class="tag tag-green">סגור</span><span class="tag ${topicTagClass(q.topic)}">${q.topic}</span></div>
+      </div>
+    </div>`).join('');
+})()}
 </div>`;
 }
 // ========== INBOX ==========
@@ -2287,89 +2350,256 @@ renderView('advisor-direct');
 }
 // ========== KNOWLEDGE ==========
 function renderKnowledge() {
-const topicColors = { 'רישום': 'tag-blue', 'פטורים': 'tag-orange', 'מלגות': 'tag-pink', 'מועדי הגשה': 'tag-green', 'תוכנית לימודים': 'tag-gray', 'בחינות': 'tag-blue', 'אחר': 'tag-gray' };
+const topicColors = {'תואר ראשון':'tag-blue','תואר שני':'tag-green','הסבה להוראה':'tag-orange','לימודי תעודה':'tag-pink','אחר':'tag-gray'};
+// Group by topic
+const grouped = {};
+state.topics.forEach(t => { grouped[t] = state.knowledge.filter(k=>k.topic===t); });
 return `
-<div class="search-bar">
-<input class="search-input" id="kb-search" placeholder="חיפוש במאמרים..." oninput="filterKb()" />
+<div class="search-bar" style="margin-bottom:16px;">
+<input class="search-input" id="kb-search" placeholder="חיפוש בבסיס הידע..." oninput="filterKb()" />
 <select class="search-filter" id="kb-filter-topic" onchange="filterKb()">
-<option value="">כל הנושאים</option>
+<option value="">כל התחומים</option>
 ${state.topics.map(t=>`<option>${t}</option>`).join('')}
 </select>
+<select class="search-filter" id="kb-filter-type" onchange="filterKb()">
+<option value="">הכל</option>
+<option value="text">📝 מאמרים</option>
+<option value="file">📎 קבצים</option>
+</select>
 </div>
-<div class="card"><div class="kb-list" id="kb-list">
-${renderKbItems(state.knowledge, topicColors)}
-${state.knowledge.length === 0 ? '<div class="empty-state"><p>אין מאמרים עדיין</p></div>' : ''}
-</div></div>`;
+<div id="kb-list">
+${state.knowledge.length === 0
+  ? '<div class="card"><div class="empty-state"><p>אין פריטים בבסיס הידע עדיין</p></div></div>'
+  : state.topics.filter(t=>grouped[t]&&grouped[t].length>0).map(t=>`
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-header" style="margin-bottom:10px;">
+        <span class="card-title" style="display:flex;align-items:center;gap:8px;">
+          <span class="tag ${topicTagClass(t)}">${t}</span>
+          <span style="font-size:12px;color:#8aab92;">${grouped[t].length} פריטים</span>
+        </span>
+      </div>
+      <div>${renderKbItems(grouped[t])}</div>
+    </div>`).join('')
 }
-function renderKbItems(items, topicColors) {
-const tc = topicColors || { 'רישום': 'tag-blue', 'פטורים': 'tag-orange', 'מלגות': 'tag-pink', 'מועדי הגשה': 'tag-green', 'תוכנית לימודים': 'tag-gray', 'בחינות': 'tag-blue', 'אחר': 'tag-gray' };
-return items.map(k => `
-<div class="kb-item">
-<div>
-<div class="kb-title">${k.title}</div>
-<div class="kb-meta">${k.topic} · עודכן ${k.updated} · ${k.views} צפיות</div>
+</div>`;
+}
+
+function renderKbItems(items) {
+if (!items || !items.length) return '';
+return items.map(k => {
+const isFile = k.fileData || k.fileName;
+const icon = isFile ? getFileIcon(k.fileName||'') : '📝';
+return `<div class="kb-item" id="kb-item-${k.id}">
+<div style="flex:1;min-width:0;">
+<div class="kb-title" style="display:flex;align-items:center;gap:6px;">${icon} ${k.title}</div>
+<div class="kb-meta">${k.topic}${k.subtopic?` › ${k.subtopic}`:''} · ${k.updated} · ${k.views||0} צפיות${isFile?' · 📎 '+k.fileName:''}</div>
 </div>
 <div class="kb-actions">
-<span class="tag ${tc[k.topic]||'tag-gray'}" style="margin-left:8px;">${k.topic}</span>
-<button class="btn-icon" onclick="renderView('kb-detail',${k.id})">קרא</button>
-${state.role==='manager' ? `<button class="btn-icon" onclick="openEditKb(${k.id})">ערוך</button><button class="btn-icon" style="color:var(--danger);border-color:var(--danger);" onclick="deleteKb(${k.id})">מחק</button>` : ''}
+${isFile
+  ? `<button class="btn-icon" onclick="previewKbFile(${k.id})">👁 צפה</button>
+     <button class="btn-icon" onclick="downloadKbFile(${k.id})">⬇ הורד</button>`
+  : `<button class="btn-icon" onclick="renderView('kb-detail',${k.id})">קרא</button>`}
+${state.role==='manager'
+  ? `<button class="btn-icon" onclick="openEditKb(${k.id})">ערוך</button>
+     <button class="btn-icon" style="color:var(--danger);border-color:var(--danger);" onclick="deleteKb(${k.id})">מחק</button>`
+  : ''}
 </div>
-</div>
-`).join('');
+</div>`;
+}).join('');
 }
+
+function getFileIcon(name) {
+const ext = (name||'').toLowerCase();
+if (ext.endsWith('.pdf')) return '📕';
+if (ext.match(/\.(jpg|jpeg|png|gif|webp)$/)) return '🖼️';
+if (ext.match(/\.(doc|docx)$/)) return '📝';
+if (ext.match(/\.(xls|xlsx)$/)) return '📊';
+if (ext.match(/\.(ppt|pptx)$/)) return '📑';
+return '📎';
+}
+
 function filterKb() {
 const q = (document.getElementById('kb-search')||{}).value?.toLowerCase()||'';
 const t = (document.getElementById('kb-filter-topic')||{}).value||'';
+const type = (document.getElementById('kb-filter-type')||{}).value||'';
 const filtered = state.knowledge.filter(k => {
-const mq = !q || k.title.toLowerCase().includes(q) || k.content.toLowerCase().includes(q) || k.topic.includes(q);
+const mq = !q || k.title.toLowerCase().includes(q) || (k.content||'').toLowerCase().includes(q) || k.topic.includes(q) || (k.subtopic||'').includes(q) || (k.fileName||'').toLowerCase().includes(q);
 const mt = !t || k.topic === t;
-return mq && mt;
+const mtype = !type || (type==='file' ? !!(k.fileData||k.fileName) : !(k.fileData||k.fileName));
+return mq && mt && mtype;
 });
 const list = document.getElementById('kb-list');
-if (list) list.innerHTML = renderKbItems(filtered) || '<div class="empty-state"><p>לא נמצאו תוצאות</p></div>';
+if (list) {
+if (!filtered.length) { list.innerHTML = '<div class="card"><div class="empty-state"><p>לא נמצאו תוצאות</p></div></div>'; return; }
+// Group filtered by topic
+const groups = {};
+filtered.forEach(k => { if(!groups[k.topic]) groups[k.topic]=[]; groups[k.topic].push(k); });
+list.innerHTML = Object.entries(groups).map(([topic,items])=>`
+<div class="card" style="margin-bottom:14px;">
+<div class="card-header" style="margin-bottom:10px;"><span class="tag ${topicTagClass(topic)}">${topic}</span></div>
+<div>${renderKbItems(items)}</div>
+</div>`).join('');
 }
+}
+
 function renderKbDetail(k) {
 if (!k) return '<p>לא נמצא</p>';
 return `<div class="card">
 <button class="back-btn" onclick="renderView('knowledge')" style="margin-bottom:14px;">← חזרה</button>
-<h2 style="font-size:17px;font-weight:600;margin-bottom:6px;">${k.title}</h2>
-<div style="font-size:12px;color:var(--text3);margin-bottom:16px;">${k.topic} · עודכן ${k.updated}</div>
-<div style="font-size:14px;line-height:1.8;white-space:pre-wrap;color:var(--text);">${k.content}</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+<h2 style="font-size:17px;font-weight:700;color:#1a2e1f;">${k.title}</h2>
+</div>
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+<span class="tag ${topicTagClass(k.topic)}">${k.topic}</span>
+${k.subtopic?`<span class="tag tag-gray">${k.subtopic}</span>`:''}
+<span style="font-size:11px;color:#8aab92;">עודכן ${k.updated} · ${k.views||0} צפיות</span>
+</div>
+<div style="font-size:14px;line-height:1.8;white-space:pre-wrap;color:#1a2e1f;">${k.content||''}</div>
 </div>`;
 }
+
 function openAddKbModal() {
-openModal('הוסף מאמר לבסיס הידע', `
-<div class="form-group"><label class="form-label">כותרת</label><input class="form-input" id="kb-title" /></div>
-<div class="form-group"><label class="form-label">נושא</label>
-<select class="form-input" id="kb-topic">${state.topics.map(t=>`<option>${t}</option>`).join('')}</select></div>
-<div class="form-group"><label class="form-label">תוכן</label><textarea class="form-textarea" id="kb-content" rows="5"></textarea></div>
+openModal('הוסף פריט לבסיס הידע', `
+<div class="form-row">
+<div class="form-group"><label class="form-label">כותרת</label><input class="form-input" id="kb-title" placeholder="שם הפריט" /></div>
+<div class="form-group"><label class="form-label">סוג</label>
+<select class="form-input" id="kb-type" onchange="toggleKbType()">
+<option value="text">📝 מאמר / טקסט</option>
+<option value="file">📎 קובץ</option>
+</select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label class="form-label">תחום</label>
+<select class="form-input" id="kb-topic" onchange="updateSubtopics('kb-subtopic','kb-topic')">${state.topics.map(t=>`<option>${t}</option>`).join('')}</select></div>
+<div class="form-group"><label class="form-label">מסלול / תת-נושא</label>
+<select class="form-input" id="kb-subtopic">${(state.topicTree[state.topics[0]]||[]).map(s=>`<option>${s}</option>`).join('')}</select></div>
+</div>
+<div id="kb-text-section" class="form-group"><label class="form-label">תוכן</label><textarea class="form-textarea" id="kb-content" rows="5" placeholder="תוכן המאמר..."></textarea></div>
+<div id="kb-file-section" style="display:none;" class="form-group">
+<label class="form-label">קובץ לצירוף</label>
+<div id="kb-file-drop" style="border:2px dashed #d0ddd3;border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:#fafdf9;"
+  onclick="document.getElementById('kb-file-input').click()"
+  ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+  ondragleave="this.style.borderColor='#d0ddd3'"
+  ondrop="handleKbFileDrop(event)">
+  <div style="font-size:24px;margin-bottom:6px;">📎</div>
+  <div style="font-size:13px;color:#4a6650;font-weight:500;">לחץ לבחירת קובץ או גרור לכאן</div>
+  <div style="font-size:11px;color:#8aab92;margin-top:4px;">PDF, Word, Excel, תמונות — עד 5MB</div>
+  <input type="file" id="kb-file-input" style="display:none;" onchange="handleKbFileSelect(this)" />
+</div>
+<div id="kb-file-preview" style="display:none;margin-top:8px;padding:10px;background:#f0f7f2;border-radius:8px;font-size:13px;color:#1a2e1f;"></div>
+</div>
 `, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveKb()">שמור</button>`);
+}
+
+let pendingKbFile = null;
+function toggleKbType() {
+const type = document.getElementById('kb-type')?.value;
+document.getElementById('kb-text-section').style.display = type==='file'?'none':'block';
+document.getElementById('kb-file-section').style.display = type==='file'?'block':'none';
+}
+function handleKbFileSelect(input) {
+const file = input.files[0];
+if (file) attachKbFile(file);
+}
+function handleKbFileDrop(e) {
+e.preventDefault();
+document.getElementById('kb-file-drop').style.borderColor='#d0ddd3';
+const file = e.dataTransfer.files[0];
+if (file) attachKbFile(file);
+}
+function attachKbFile(file) {
+if (file.size > 5*1024*1024) { showToast('קובץ גדול מדי — מקסימום 5MB'); return; }
+const reader = new FileReader();
+reader.onload = function(e) {
+pendingKbFile = { name: file.name, size: file.size, type: file.type, data: e.target.result };
+const icon = getFileIcon(file.name);
+const preview = document.getElementById('kb-file-preview');
+if (preview) {
+preview.style.display = 'block';
+preview.innerHTML = `<span style="font-size:18px;">${icon}</span> <strong>${file.name}</strong> (${(file.size/1024).toFixed(1)} KB)`;
+}
+document.getElementById('kb-file-drop').style.borderColor='var(--accent)';
+};
+reader.readAsDataURL(file);
 }
 function saveKb(editId) {
 const title = document.getElementById('kb-title').value.trim();
 const topic = document.getElementById('kb-topic').value;
-const content = document.getElementById('kb-content').value.trim();
-if (!title || !content) { showToast('נא למלא כותרת ותוכן'); return; }
+const subtopic = document.getElementById('kb-subtopic')?.value || '';
+const type = document.getElementById('kb-type')?.value || 'text';
+const textContent = document.getElementById('kb-content')?.value.trim() || '';
+if (!title) { showToast('נא למלא כותרת'); return; }
+if (type==='text' && !textContent) { showToast('נא למלא תוכן'); return; }
+if (type==='file' && !pendingKbFile && !editId) { showToast('נא לצרף קובץ'); return; }
+const now = new Date().toLocaleDateString('he-IL');
 if (editId) {
 const k = state.knowledge.find(x => x.id === editId);
-k.title = title; k.topic = topic; k.content = content; k.updated = new Date().toLocaleDateString('he-IL');
+k.title = title; k.topic = topic; k.subtopic = subtopic; k.updated = now;
+if (type==='text') { k.content = textContent; k.fileData=null; k.fileName=null; }
+if (pendingKbFile) { k.fileData=pendingKbFile.data; k.fileName=pendingKbFile.name; k.fileType=pendingKbFile.type; k.content=''; }
 } else {
-state.knowledge.push({ id: state.knowledge.length+1, title, topic, content, views: 0, updated: new Date().toLocaleDateString('he-IL') });
+const newItem = { id: Date.now(), title, topic, subtopic, updated: now, views: 0 };
+if (type==='file' && pendingKbFile) {
+newItem.fileData = pendingKbFile.data;
+newItem.fileName = pendingKbFile.name;
+newItem.fileType = pendingKbFile.type;
+newItem.content = '';
+} else {
+newItem.content = textContent;
 }
-closeModal(); saveToStorage(); saveKnowledgeToFirebase(); showToast('מאמר נשמר'); renderView('knowledge');
+state.knowledge.push(newItem);
+}
+pendingKbFile = null;
+closeModal(); saveToStorage(); saveKnowledgeToFirebase(); showToast('נשמר בהצלחה'); renderView('knowledge');
 }
 function openEditKb(id) {
 const k = state.knowledge.find(x => x.id === id);
-openModal('ערוך מאמר', `
+const isFile = !!(k.fileData||k.fileName);
+openModal('ערוך פריט', `
+<div class="form-row">
 <div class="form-group"><label class="form-label">כותרת</label><input class="form-input" id="kb-title" value="${k.title}" /></div>
-<div class="form-group"><label class="form-label">נושא</label>
-<select class="form-input" id="kb-topic">${state.topics.map(t=>`<option ${t===k.topic?'selected':''}>${t}</option>`).join('')}</select></div>
-<div class="form-group"><label class="form-label">תוכן</label><textarea class="form-textarea" id="kb-content" rows="5">${k.content}</textarea></div>
+<div class="form-group"><label class="form-label">סוג</label>
+<select class="form-input" id="kb-type" onchange="toggleKbType()">
+<option value="text" ${!isFile?'selected':''}>📝 מאמר</option>
+<option value="file" ${isFile?'selected':''}>📎 קובץ</option>
+</select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label class="form-label">תחום</label>
+<select class="form-input" id="kb-topic" onchange="updateSubtopics('kb-subtopic','kb-topic')">${state.topics.map(t=>`<option ${t===k.topic?'selected':''}>${t}</option>`).join('')}</select></div>
+<div class="form-group"><label class="form-label">מסלול</label>
+<select class="form-input" id="kb-subtopic">${(state.topicTree[k.topic]||[]).map(s=>`<option ${s===k.subtopic?'selected':''}>${s}</option>`).join('')}</select></div>
+</div>
+<div id="kb-text-section" class="form-group" style="${isFile?'display:none':''}"><label class="form-label">תוכן</label><textarea class="form-textarea" id="kb-content" rows="4">${k.content||''}</textarea></div>
+<div id="kb-file-section" style="${isFile?'':'display:none'}" class="form-group">
+${isFile?`<div style="padding:10px;background:#f0f7f2;border-radius:8px;font-size:13px;">${getFileIcon(k.fileName||'')} <strong>${k.fileName||''}</strong> — קובץ קיים</div>`:''}
+<div style="margin-top:8px;font-size:12px;color:#8aab92;">להחלפה: <input type="file" id="kb-file-input" onchange="handleKbFileSelect(this)" /></div>
+<div id="kb-file-preview" style="display:none;margin-top:8px;"></div>
+</div>
 `, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveKb(${id})">שמור</button>`);
 }
 function deleteKb(id) {
+if(!confirm('למחוק פריט זה מבסיס הידע?')) return;
 state.knowledge = state.knowledge.filter(k => k.id !== id);
-saveToStorage(); saveKnowledgeToFirebase(); showToast('מאמר נמחק'); renderView('knowledge');
+saveToStorage(); saveKnowledgeToFirebase(); showToast('נמחק'); renderView('knowledge');
+}
+function previewKbFile(id) {
+const k = state.knowledge.find(x=>x.id===id);
+if (!k || !k.fileData) { showToast('קובץ לא זמין'); return; }
+k.views = (k.views||0)+1;
+const nameEnc = encodeURIComponent(k.fileName||'file');
+fileStore[k.fileName] = k.fileData;
+previewFile(nameEnc);
+}
+function downloadKbFile(id) {
+const k = state.knowledge.find(x=>x.id===id);
+if (!k || !k.fileData) { showToast('קובץ לא זמין'); return; }
+k.views = (k.views||0)+1;
+const a = document.createElement('a');
+a.href = k.fileData; a.download = k.fileName||'file';
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+showToast('מוריד: '+k.fileName);
 }
 // ========== REPORTS ==========
 function renderReports() {
@@ -2915,6 +3145,65 @@ if (!el) return;
 el.classList.add('removing');
 setTimeout(() => el.remove(), 300);
 }
+
+// ========== GLOBAL SEARCH ==========
+function globalSearch() {
+const q = document.getElementById('global-search')?.value?.trim().toLowerCase();
+const resultsEl = document.getElementById('global-results');
+if (!resultsEl) return;
+if (!q || q.length < 2) { resultsEl.style.display='none'; return; }
+// Search questions
+const qResults = state.questions.filter(item =>
+item.subject.toLowerCase().includes(q) ||
+item.advisorName.toLowerCase().includes(q) ||
+item.studentName.toLowerCase().includes(q) ||
+item.topic.toLowerCase().includes(q) ||
+(item.subtopic||'').toLowerCase().includes(q) ||
+item.messages.some(m=>(m.text||'').toLowerCase().includes(q))
+).slice(0,5);
+// Search knowledge
+const kResults = state.knowledge.filter(k =>
+k.title.toLowerCase().includes(q) ||
+(k.content||'').toLowerCase().includes(q) ||
+k.topic.toLowerCase().includes(q) ||
+(k.subtopic||'').toLowerCase().includes(q) ||
+(k.fileName||'').toLowerCase().includes(q)
+).slice(0,4);
+if (!qResults.length && !kResults.length) {
+resultsEl.style.display='block';
+resultsEl.innerHTML='<div class="card" style="padding:12px 16px;"><div class="empty-state" style="padding:16px 0;"><p>לא נמצאו תוצאות עבור "' + q + '"</p></div></div>';
+return;
+}
+let html = '<div class="card" style="padding:14px 18px;">';
+html += '<div style="font-size:12px;font-weight:700;color:#8aab92;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">תוצאות חיפוש עבור "' + q + '"</div>';
+if (qResults.length) {
+html += '<div style="font-size:12px;font-weight:600;color:#4a6650;margin-bottom:6px;">📬 שאלות (' + qResults.length + ')</div>';
+html += qResults.map(item=>`
+<div onclick="${state.role==='manager'?'openThread('+item.id+')':'openAdvisorThread('+item.id+')'}" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='transparent'">
+<div style="width:36px;height:36px;border-radius:10px;background:#e4f4ec;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1a6b3a;flex-shrink:0;">${item.advisorName[0]}</div>
+<div style="flex:1;min-width:0;">
+<div style="font-size:13px;font-weight:600;color:#1a2e1f;">${item.subject}</div>
+<div style="font-size:11px;color:#8aab92;">${item.advisorName} · ${item.studentName} · <span class="tag ${topicTagClass(item.topic)}" style="font-size:9px;">${item.topic}</span></div>
+</div>
+<span class="tag ${item.status==='open'?'tag-red':'tag-green'}" style="font-size:10px;">${item.status==='open'?'פתוח':'סגור'}</span>
+</div>`).join('');
+}
+if (kResults.length) {
+html += '<div style="font-size:12px;font-weight:600;color:#4a6650;margin:12px 0 6px;">📚 בסיס ידע (' + kResults.length + ')</div>';
+html += kResults.map(k=>`
+<div onclick="renderView('kb-detail',${k.id})" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='transparent'">
+<div style="font-size:20px;">${k.fileData?getFileIcon(k.fileName||''):'📝'}</div>
+<div style="flex:1;min-width:0;">
+<div style="font-size:13px;font-weight:600;color:#1a2e1f;">${k.title}</div>
+<div style="font-size:11px;color:#8aab92;"><span class="tag ${topicTagClass(k.topic)}" style="font-size:9px;">${k.topic}</span>${k.subtopic?' · '+k.subtopic:''}</div>
+</div>
+</div>`).join('');
+}
+html += '</div>';
+resultsEl.style.display='block';
+resultsEl.innerHTML=html;
+}
+
 // ========== BEAR MASCOT ==========
 const bearMsgs = [
 "שלום! אנחנו צמד המייעצים 🦉🐻",
