@@ -9,6 +9,7 @@
 // Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, updateDoc, addDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 const firebaseConfig = {
 apiKey: "AIzaSyAqORKxvJjjI5nPkwvRvNjyR8E4AzSYMrg",
 authDomain: "smkb-request-manager.firebaseapp.com",
@@ -20,8 +21,10 @@ measurementId: "G-GJWXTHWP2L"
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const storage = getStorage(app);
 // Expose to global scope for use in main script
 window.db = db;
+window.storage = storage;
 window.fsCollection = collection;
 window.fsDoc = doc;
 window.fsSetDoc = setDoc;
@@ -34,6 +37,10 @@ window.fsAddDoc = addDoc;
 window.fsServerTimestamp = serverTimestamp;
 window.fsQuery = query;
 window.fsOrderBy = orderBy;
+window.storageRef = ref;
+window.storageUpload = uploadString;
+window.storageGetURL = getDownloadURL;
+window.storageDelete = deleteObject;
 window.firebaseReady = true;
 // Signal ready
 window.dispatchEvent(new Event('firebase-ready'));
@@ -798,6 +805,8 @@ radius: '10',
 }
 }
 };
+
+const SMKB_LOGO = "data:image/png;base64,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";
 // ========== EYE ICON ==========
 function togglePw(inputId, iconId) {
 const inp = document.getElementById(inputId);
@@ -1826,7 +1835,6 @@ if (file.size > 5 * 1024 * 1024) { showToast('הקובץ גדול מדי (מקס
 const reader = new FileReader();
 reader.onload = function(e) {
 const data = e.target.result;
-// Store full data in memory by filename key
 fileStore[file.name] = data;
 pendingFile = { name: file.name, size: file.size, type: file.type, data: data };
 const icons = { 'application/pdf': '📕', 'image': '🖼️', 'application/vnd.openxmlformats': '📊', 'application/msword': '📝', 'text': '📄' };
@@ -1839,6 +1847,22 @@ const preview = document.getElementById('file-preview');
 preview.style.display = 'flex';
 const dropZone = document.getElementById('file-drop-zone');
 if (dropZone) dropZone.style.borderColor = 'var(--accent)';
+// Upload to Firebase Storage in background
+if (window.storage) {
+const path = 'attachments/' + Date.now() + '_' + file.name;
+const fileRef = window.storageRef(window.storage, path);
+window.storageUpload(fileRef, data, 'data_url').then(() => {
+return window.storageGetURL(fileRef);
+}).then(url => {
+pendingFile.storageUrl = url;
+pendingFile.storagePath = path;
+pendingFile.data = null; // clear base64 from memory after upload
+fileStore[file.name + '_url'] = url;
+showToast('קובץ הועלה בהצלחה ✓');
+}).catch(err => {
+console.warn('Storage upload failed, keeping local data:', err);
+});
+}
 };
 reader.readAsDataURL(file);
 }
@@ -1853,16 +1877,24 @@ if (dropZone) dropZone.style.borderColor = '#d0ddd3';
 }
 
 function getFileData(name) {
-// Check memory store first, then messages
+// Check memory store first
 if (fileStore[name]) return fileStore[name];
+// Check storage URL cache
+if (fileStore[name + '_url']) return fileStore[name + '_url'];
+// Check messages for storageUrl or data
 for (const q of state.questions) {
 for (const m of q.messages) {
-if (m.attachment && m.attachment.name === name && m.attachment.data && m.attachment.data.length > 100) {
-return m.attachment.data;
+if (m.attachment && m.attachment.name === name) {
+if (m.attachment.storageUrl) return m.attachment.storageUrl;
+if (m.attachment.data && m.attachment.data.length > 100) return m.attachment.data;
 }
 }
 }
 return null;
+}
+
+function isStorageUrl(str) {
+return str && (str.startsWith('https://') || str.startsWith('http://'));
 }
 
 function fileAttachmentHTML(attachment) {
@@ -1875,68 +1907,75 @@ for (const [k,v] of Object.entries(icons)) {
 if ((attachment.type||'').includes(k) || (attachment.name||'').toLowerCase().endsWith('.'+k)) { icon = v; break; }
 }
 const nameEnc = encodeURIComponent(attachment.name||'file');
-const hasData = !!(attachment.data && attachment.data.length > 100) || !!fileStore[attachment.name];
-const canPreview = isImage || isPdf;
+const storageUrl = attachment.storageUrl || fileStore[(attachment.name||'') + '_url'];
+const localData = attachment.data && attachment.data.length > 100;
+const hasData = !!(storageUrl || localData || fileStore[attachment.name]);
+const canPreview = isImage || isPdf || storageUrl;
+const storagePath = attachment.storagePath || '';
+const isManager = state.role === 'manager';
 
 return '<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.18);border-radius:10px;border:1px solid rgba(255,255,255,0.3);">' +
 '<div style="display:flex;align-items:center;gap:10px;">' +
 '<span style="font-size:20px;">' + icon + '</span>' +
 '<div style="flex:1;min-width:0;">' +
 '<div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (attachment.name||'קובץ') + '</div>' +
-'<div style="font-size:10px;opacity:0.75;">' + ((attachment.size||0)/1024).toFixed(1) + ' KB</div>' +
+'<div style="font-size:10px;opacity:0.75;">' + ((attachment.size||0)/1024).toFixed(1) + ' KB' + (storageUrl ? ' · ☁️ שמור בענן' : '') + '</div>' +
 '</div>' +
 '<div style="display:flex;gap:5px;flex-shrink:0;">' +
-(canPreview ? '<button onclick="previewFile(\'' + nameEnc + '\')" style="padding:5px 10px;background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);border-radius:6px;color:white;font-size:11px;cursor:pointer;font-weight:600;" title="תצוגה מקדימה">👁 צפה</button>' : '') +
-(hasData ? '<button onclick="downloadFileByName(\'' + nameEnc + '\')" style="padding:5px 10px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);border-radius:6px;color:white;font-size:11px;cursor:pointer;font-weight:600;" title="הורד קובץ">⬇ הורד</button>' : '<span style="font-size:10px;opacity:0.5;padding:4px;">לא זמין</span>') +
+(canPreview || hasData ? '<button onclick="previewFile(\'' + nameEnc + '\')" style="padding:5px 10px;background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);border-radius:6px;color:white;font-size:11px;cursor:pointer;font-weight:600;">👁 צפה</button>' : '') +
+(hasData ? '<button onclick="downloadFileByName(\'' + nameEnc + '\')" style="padding:5px 10px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);border-radius:6px;color:white;font-size:11px;cursor:pointer;font-weight:600;">⬇ הורד</button>' : '<span style="font-size:10px;opacity:0.5;padding:4px;">לא זמין</span>') +
+(isManager && storagePath ? '<button onclick="deleteStorageFile(\'' + encodeURIComponent(storagePath) + '\',\'' + nameEnc + '\',this)" style="padding:5px 8px;background:rgba(231,76,60,0.3);border:1px solid rgba(231,76,60,0.5);border-radius:6px;color:white;font-size:11px;cursor:pointer;" title="מחק קובץ מהאחסון">🗑</button>' : '') +
 '</div>' +
 '</div></div>';
 }
 
+function isStorageUrl(str) {
+return str && (str.startsWith('https://') || str.startsWith('http://'));
+}
 function downloadFileByName(nameEnc) {
 const name = decodeURIComponent(nameEnc);
 const data = getFileData(name);
-if (data) {
+if (!data) { showToast('הקובץ לא זמין — נסה מהמחשב שהעלה אותו'); return; }
+if (isStorageUrl(data)) {
+window.open(data, '_blank');
+showToast('נפתח בלשונית חדשה');
+} else {
 const a = document.createElement('a');
 a.href = data; a.download = name;
 document.body.appendChild(a); a.click(); document.body.removeChild(a);
 showToast('מוריד: ' + name);
-} else {
-showToast('הקובץ לא זמין — נשמר רק בסשן בו הועלה');
 }
 }
 
 function previewFile(nameEnc) {
 const name = decodeURIComponent(nameEnc);
 const data = getFileData(name);
-if (!data) { showToast('תצוגה מקדימה לא זמינה'); return; }
-const isImage = data.startsWith('data:image');
-const isPdf = data.startsWith('data:application/pdf') || name.toLowerCase().endsWith('.pdf');
-// Build preview modal
+if (!data) { showToast('תצוגה מקדימה לא זמינה — הקובץ יהיה זמין לאחר העלאה ל-Storage'); return; }
+const isUrl = isStorageUrl(data);
+const isImage = (isUrl || data.startsWith('data:image')) && name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+const isPdf = name.toLowerCase().endsWith('.pdf');
 const overlay = document.createElement('div');
-overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
 overlay.onclick = (e) => { if(e.target===overlay) overlay.remove(); };
-let innerHTML = '';
+let contentHTML = '';
 if (isImage) {
-innerHTML = '<img src="' + data + '" style="max-width:90vw;max-height:80vh;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.5);" />';
-} else if (isPdf) {
-innerHTML = '<iframe src="' + data + '" style="width:min(90vw,800px);height:80vh;border:none;border-radius:10px;" ></iframe>';
+contentHTML = '<img src="' + data + '" style="max-width:90vw;max-height:78vh;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.6);" />';
+} else if (isPdf || isUrl) {
+contentHTML = '<iframe src="' + data + '" style="width:min(92vw,860px);height:78vh;border:none;border-radius:10px;background:white;" ></iframe>';
 } else {
-// Text preview
 try {
-const text = atob(data.split(',')[1]);
-innerHTML = '<pre style="background:#fff;padding:20px;border-radius:10px;max-width:80vw;max-height:70vh;overflow:auto;font-size:13px;line-height:1.6;direction:ltr;">' + text.substring(0,3000) + (text.length>3000?'\n...':'') + '</pre>';
-} catch(e) {
-innerHTML = '<div style="color:white;font-size:14px;">לא ניתן להציג קובץ מסוג זה</div>';
+const text = atob(data.split(",")[1]);
+contentHTML = "<pre style=\"background:#1a2e1f;color:#a8f0c0;padding:20px;border-radius:10px;max-width:80vw;max-height:70vh;overflow:auto;font-size:13px;line-height:1.6;direction:ltr;text-align:left;\">" + text.substring(0,5000).replace(/</g,"&lt;") + (text.length>5000?"\n...":"") + "</pre>";
+} catch(ex) {
+contentHTML = "<div style=\"color:white;font-size:14px;padding:20px;\">לא ניתן להציג קובץ מסוג זה — השתמש בכפתור ⬇ הורד</div>";
 }
 }
-overlay.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;">' +
-'<div style="display:flex;gap:10px;align-items:center;">' +
-'<span style="color:white;font-size:14px;font-weight:600;">' + name + '</span>' +
-'<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:6px 14px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:8px;color:white;cursor:pointer;font-size:12px;">✕ סגור</button>' +
-'<button onclick="downloadFileByName(\'' + nameEnc + '\')" style="padding:6px 14px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-size:12px;">⬇ הורד</button>' +
-'</div>' +
-innerHTML +
-'</div>';
+overlay.innerHTML = "<div style=\"display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-height:100vh;\">" +
+"<div style=\"display:flex;gap:10px;align-items:center;flex-shrink:0;\">" +
+"<span style=\"color:#a8f0c0;font-size:14px;font-weight:600;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">" + name + "</span>" +
+"<button onclick=\"downloadFileByName('" + nameEnc + "')\" style=\"padding:7px 16px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-size:12px;font-weight:600;\">⬇ הורד</button>" +
+"<button onclick=\"this.closest('div[style*=fixed]').remove()\" style=\"padding:7px 14px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:8px;color:white;cursor:pointer;font-size:12px;\">✕ סגור</button>" +
+"</div>" + contentHTML + "</div>";
 document.body.appendChild(overlay);
 }
 
@@ -1944,6 +1983,38 @@ function downloadFile(btn) {
 const name = decodeURIComponent(btn.getAttribute('data-name'));
 downloadFileByName(encodeURIComponent(name));
 }
+
+async function deleteStorageFile(pathEnc, nameEnc, btn) {
+const path = decodeURIComponent(pathEnc);
+const name = decodeURIComponent(nameEnc);
+if (!confirm('למחוק את הקובץ "' + name + '" מהאחסון לצמיתות?')) return;
+try {
+if (window.storage) {
+const fileRef = window.storageRef(window.storage, path);
+await window.storageDelete(fileRef);
+}
+// Remove from all messages
+for (const q of state.questions) {
+for (const m of q.messages) {
+if (m.attachment && m.attachment.name === name) {
+m.attachment.storageUrl = null;
+m.attachment.storagePath = null;
+m.attachment.data = null;
+await saveQuestionToFirebase(q);
+}
+}
+}
+delete fileStore[name];
+delete fileStore[name + '_url'];
+showToast('קובץ נמחק מהאחסון');
+// Hide the delete button and update display
+if (btn) btn.closest('div[style*="border-radius:10px"]').querySelector('div:last-child').innerHTML = '<span style="font-size:10px;opacity:0.5;padding:4px;">נמחק</span>';
+} catch(e) {
+console.error(e);
+showToast('שגיאה במחיקת הקובץ');
+}
+}
+
 
 function downloadAttachment(nameEncoded, hasData) {
 // Find in messages
