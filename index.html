@@ -2601,17 +2601,30 @@ const file = e.dataTransfer.files[0];
 if (file) attachKbFile(file);
 }
 function attachKbFile(file) {
-if (file.size > 5*1024*1024) { showToast('קובץ גדול מדי — מקסימום 5MB'); return; }
+if (file.size > 10*1024*1024) { showToast('קובץ גדול מדי — מקסימום 10MB'); return; }
 const reader = new FileReader();
 reader.onload = function(e) {
-pendingKbFile = { name: file.name, size: file.size, type: file.type, data: e.target.result };
+const data = e.target.result;
+pendingKbFile = { name: file.name, size: file.size, type: file.type, data: data };
 const icon = getFileIcon(file.name);
 const preview = document.getElementById('kb-file-preview');
 if (preview) {
 preview.style.display = 'block';
-preview.innerHTML = `<span style="font-size:18px;">${icon}</span> <strong>${file.name}</strong> (${(file.size/1024).toFixed(1)} KB)`;
+preview.innerHTML = `<span style="font-size:18px;">${icon}</span> <strong>${file.name}</strong> (${(file.size/1024).toFixed(1)} KB) <span style="color:#8aab92;font-size:11px;">מעלה לענן...</span>`;
 }
 document.getElementById('kb-file-drop').style.borderColor='var(--accent)';
+// Upload to Cloudinary
+uploadFileToCloudinary(data, file.name).then(result => {
+if (result) {
+pendingKbFile.storageUrl = result.url;
+pendingKbFile.data = null;
+fileStore[file.name + '_url'] = result.url;
+if (preview) preview.innerHTML = `<span style="font-size:18px;">${icon}</span> <strong>${file.name}</strong> (${(file.size/1024).toFixed(1)} KB) <span style="color:#1a6b3a;font-size:11px;">✓ הועלה לענן</span>`;
+} else {
+// Keep local data as fallback
+if (preview) preview.innerHTML = `<span style="font-size:18px;">${icon}</span> <strong>${file.name}</strong> (${(file.size/1024).toFixed(1)} KB) <span style="color:#e67e22;font-size:11px;">שמור מקומית</span>`;
+}
+});
 };
 reader.readAsDataURL(file);
 }
@@ -3403,8 +3416,22 @@ function attachTrainingFile(file) {
 if (file.size > 10*1024*1024) { showToast('קובץ גדול מדי — מקסימום 10MB'); return; }
 const reader = new FileReader();
 reader.onload = function(ev) {
-pendingTrainingFiles.push({ name: file.name, size: file.size, type: file.type, data: ev.target.result });
-fileStore[file.name] = ev.target.result;
+const data = ev.target.result;
+fileStore[file.name] = data;
+const fileEntry = { name: file.name, size: file.size, type: file.type, data: data };
+pendingTrainingFiles.push(fileEntry);
+// Upload to Cloudinary
+uploadFileToCloudinary(data, file.name).then(result => {
+if (result) {
+const idx = pendingTrainingFiles.findIndex(f => f.name === file.name);
+if (idx >= 0) {
+pendingTrainingFiles[idx].storageUrl = result.url;
+pendingTrainingFiles[idx].data = null;
+}
+fileStore[file.name + '_url'] = result.url;
+showToast('קובץ הועלה לענן ✓');
+}
+});
 const preview = document.getElementById('tr-files-preview');
 if (preview) preview.innerHTML = pendingTrainingFiles.map((f,i)=>`<span style="padding:4px 10px;background:#f0f7f2;border:1px solid #c8deca;border-radius:6px;font-size:11px;color:#1a6b3a;">${getFileIcon(f.name)} ${f.name}</span>`).join('');
 };
@@ -4172,6 +4199,46 @@ a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
 a.download = filename;
 document.body.appendChild(a); a.click(); document.body.removeChild(a);
 showToast('מוריד דוח...');
+}
+
+
+// ========== CLOUDINARY FILE STORAGE ==========
+const CLOUDINARY_CLOUD = "dmck0a0sn";
+const CLOUDINARY_PRESET = "smkb request manager";
+
+async function uploadToCloudinary(file) {
+const formData = new FormData();
+formData.append('file', file);
+formData.append('upload_preset', CLOUDINARY_PRESET);
+formData.append('resource_type', 'auto');
+try {
+const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/auto/upload`, {
+method: 'POST',
+body: formData
+});
+const data = await res.json();
+if (data.secure_url) {
+console.log('Cloudinary upload OK:', data.secure_url);
+return { url: data.secure_url, publicId: data.public_id };
+}
+throw new Error(data.error?.message || 'Upload failed');
+} catch(e) {
+console.error('Cloudinary error:', e);
+return null;
+}
+}
+
+async function uploadFileToCloudinary(base64Data, filename) {
+// Convert base64 to blob
+const arr = base64Data.split(',');
+const mime = arr[0].match(/:(.*?);/)[1];
+const bstr = atob(arr[1]);
+let n = bstr.length;
+const u8arr = new Uint8Array(n);
+while(n--) u8arr[n] = bstr.charCodeAt(n);
+const blob = new Blob([u8arr], {type: mime});
+const file = new File([blob], filename, {type: mime});
+return await uploadToCloudinary(file);
 }
 
 const bearMsgs = [
