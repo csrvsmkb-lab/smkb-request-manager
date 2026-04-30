@@ -3454,7 +3454,7 @@ return `<div style="padding:14px 0;border-bottom:1px solid #eef2ef;display:flex;
 <div style="font-size:14px;font-weight:700;color:#1a2e1f;">${q.title}</div>
 <div style="font-size:12px;color:#8aab92;">${q.topic} · ${q.questions?q.questions.length:0} שאלות · נוצר ${q.created}</div>
 ${avgScore!==null?`<div style="font-size:11px;color:#1a6b3a;margin-top:2px;">ממוצע: ${avgScore}% · ${results.length} נבחנים</div>`:''}
-${myResult?`<div style="margin-top:4px;"><span style="background:#e4f4ec;color:#1a6b3a;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">✓ ציון שלי: ${myResult.score}%</span></div>`:''}
+${myResult?`<div style="margin-top:4px;display:flex;align-items:center;gap:6px;"><span style="background:#e4f4ec;color:#1a6b3a;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">✓ ציון שלי: ${myResult.score}%</span>${(()=>{const allScores=(state.quizResults[q.id]||[]).filter(r=>r.score!=null).map(r=>r.score);const mx=allScores.length?Math.max(...allScores):null;return mx!==null&&myResult.score===mx?'<span style="font-size:16px;" title="מקום ראשון!">🏆</span>':'';})()} </div>`:''}
 </div>
 <div style="display:flex;gap:6px;flex-shrink:0;">
 ${state.role==='manager'?`
@@ -3601,25 +3601,58 @@ ${quiz.questions.filter((_,qi)=>answers[qi]&&!answers[qi].correct&&answers[qi].t
 </div>`;
 }
 function renderQuizResults(id) {
+if (!state.quizzes) state.quizzes = [];
+if (!state.quizResults) state.quizResults = {};
 const quiz = state.quizzes.find(q=>q.id===id);
 if (!quiz) return '<p>לא נמצא</p>';
 const results = state.quizResults[id] || [];
-const avgScore = results.filter(r=>r.score!==null).length ? Math.round(results.filter(r=>r.score!==null).reduce((s,r)=>s+r.score,0)/results.filter(r=>r.score!==null).length) : null;
+const avgScore = results.filter(r=>r.score!=null).length ? Math.round(results.filter(r=>r.score!=null).reduce((s,r)=>s+r.score,0)/results.filter(r=>r.score!=null).length) : null;
+const maxScore = results.length ? Math.max(...results.filter(r=>r.score!=null).map(r=>r.score)) : null;
 return `<div class="card">
 <button class="back-btn" onclick="renderView('knowledge-hub')" style="margin-bottom:14px;">← חזרה</button>
-<h2 style="font-size:17px;font-weight:700;margin-bottom:4px;">${quiz.title} — תוצאות</h2>
-<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+<h2 style="font-size:17px;font-weight:700;">${quiz.title} — תוצאות</h2>
+<button onclick="exportQuizzesReport()" class="btn-sm">⬇ ייצוא CSV</button>
+</div>
+<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
 <div style="background:#e4f4ec;border-radius:8px;padding:10px 14px;font-size:13px;"><span style="font-weight:700;color:#1a6b3a;">${results.length}</span> נבחנו</div>
 ${avgScore!==null?`<div style="background:#e4f4ec;border-radius:8px;padding:10px 14px;font-size:13px;"><span style="font-weight:700;color:#1a6b3a;">${avgScore}%</span> ממוצע</div>`:''}
-<div style="background:#f0f7f2;border-radius:8px;padding:10px 14px;font-size:13px;">${state.advisors.length - results.length} לא נבחנו עדיין</div>
+<div style="background:#f0f7f2;border-radius:8px;padding:10px 14px;font-size:13px;">${state.advisors.length - results.length} לא נבחנו</div>
 </div>
 ${results.length===0?'<div class="empty-state"><p>אין תוצאות עדיין</p></div>':
-results.map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eef2ef;">
+results.map(r=>`
+<div style="border:1px solid #eef2ef;border-radius:12px;margin-bottom:12px;overflow:hidden;">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f7fdf9;cursor:pointer;" onclick="toggleAnswerDetail('detail-${r.advisorId}')">
 <div style="width:36px;height:36px;border-radius:10px;background:#e4f4ec;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1a6b3a;flex-shrink:0;">${(r.advisorName||'?')[0]}</div>
-<div style="flex:1;"><div style="font-size:13px;font-weight:600;">${r.advisorName}</div><div style="font-size:11px;color:#8aab92;">${r.date} ${r.time}</div></div>
-<div style="font-size:16px;font-weight:700;color:${r.score>=80?'#1a6b3a':r.score>=60?'#e67e22':'#e74c3c'}">${r.score!==null?r.score+'%':'פתוחות'}</div>
+<div style="flex:1;"><div style="font-size:13px;font-weight:600;">${r.advisorName}</div><div style="font-size:11px;color:#8aab92;">${r.date||''} ${r.time||''}</div></div>
+<div style="font-size:18px;font-weight:700;color:${(r.score||0)>=80?'#1a6b3a':(r.score||0)>=60?'#e67e22':'#e74c3c'};margin-left:8px;">${r.score!=null?r.score+'%':'פתוחות'}</div>
+${r.score!=null && r.score===maxScore ? '<span style="font-size:20px;" title="מקום ראשון!">🏆</span>' : ''}
+<span style="font-size:11px;color:#8aab92;">▼ פרטים</span>
+</div>
+<div id="detail-${r.advisorId}" style="display:none;padding:12px 14px;">
+${quiz.questions.map((q,qi)=>{
+const ans = r.answers ? r.answers[qi] : null;
+const isCorrect = ans && ans.type==='multi' ? ans.correct : null;
+const userAns = ans ? (ans.type==='open' ? ans.answer : (q.choices&&q.choices[ans.answer])||'לא ענה') : 'לא ענה';
+const correctAns = ans && ans.type==='multi' ? (q.choices&&q.choices[q.correct])||'' : null;
+return `<div style="padding:8px 0;border-bottom:1px solid #f0f7f2;">
+<div style="font-size:12px;font-weight:600;color:#1a2e1f;margin-bottom:4px;">${qi+1}. ${q.q}</div>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<span style="font-size:11px;background:${isCorrect===null?'#e8f2ea':isCorrect?'#d4f4e0':'#fde8e8'};color:${isCorrect===null?'#4a6650':isCorrect?'#1a6b3a':'#e74c3c'};padding:3px 8px;border-radius:6px;">
+${isCorrect===null?'📝 '+userAns:isCorrect?'✓ '+userAns:'✗ '+userAns}
+</span>
+${isCorrect===false&&correctAns?`<span style="font-size:11px;color:#1a6b3a;opacity:0.8;">נכון: ${correctAns}</span>`:''}
+</div>
+</div>`;
+}).join('')}
+</div>
 </div>`).join('')}
 </div>`;
+}
+
+function toggleAnswerDetail(id) {
+const el = document.getElementById(id);
+if (el) el.style.display = el.style.display==='none' ? 'block' : 'none';
 }
 function renderHubUpdates() {
 if (!state.topics) state.topics = ['תואר ראשון','תואר שני','הסבה להוראה','לימודי תעודה','אחר'];
