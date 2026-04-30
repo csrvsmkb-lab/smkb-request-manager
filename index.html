@@ -528,12 +528,12 @@ transition:opacity 0.3s, transform 0.3s;
 <div id="login-screen">
 <div class="login-left">
 <div class="login-left-logo">
-<div class="smkb-logo-wrap">
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-<circle cx="16" cy="16" r="14" fill="none" stroke="white" stroke-width="1.5"/>
-<path d="M10 22 L16 8 L22 22" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M12 18 L20 18" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-<circle cx="16" cy="8" r="2" fill="#a8f0c0"/>
+<div class="smkb-logo-wrap" style="width:70px;height:70px;background:white;border-radius:12px;padding:6px;display:flex;align-items:center;justify-content:center;">
+<img src="https://upload.wikimedia.org/wikipedia/he/thumb/3/31/SeminarKibutz.svg/236px-SeminarKibutz.svg.png" alt="סמינר הקיבוצים" style="width:52px;height:auto;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+<svg style="display:none;width:52px;height:52px;" viewBox="0 0 32 32" fill="none">
+<circle cx="16" cy="16" r="14" fill="none" stroke="#1a6b3a" stroke-width="1.5"/>
+<path d="M10 22 L16 8 L22 22" stroke="#1a6b3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M12 18 L20 18" stroke="#1a6b3a" stroke-width="1.5" stroke-linecap="round"/>
 </svg>
 </div>
 <div>
@@ -592,13 +592,12 @@ transition:opacity 0.3s, transform 0.3s;
 <div id="app">
 <div class="sidebar">
 <div class="sidebar-header" style="display:flex;align-items:center;gap:10px;">
-<div style="width:34px;height:34px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
-<img id="sidebar-logo-img" style="width:34px;height:34px;object-fit:contain;display:none;" onerror="this.style.display='none';document.getElementById('sidebar-logo-svg').style.display=''" />
-<svg id="sidebar-logo-svg" width="20" height="20" viewBox="0 0 32 32" fill="none">
-<circle cx="16" cy="16" r="13" fill="none" stroke="white" stroke-width="1.8"/>
-<path d="M10 22 L16 9 L22 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M12 18 L20 18" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-<circle cx="16" cy="9" r="2" fill="#a8f0c0"/>
+<div style="width:36px;height:36px;border-radius:8px;background:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;padding:2px;">
+<img src="https://upload.wikimedia.org/wikipedia/he/thumb/3/31/SeminarKibutz.svg/236px-SeminarKibutz.svg.png" style="width:30px;height:auto;object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
+<svg style="display:none;width:24px;height:24px;" viewBox="0 0 32 32" fill="none">
+<circle cx="16" cy="16" r="13" fill="none" stroke="#1a6b3a" stroke-width="1.8"/>
+<path d="M10 22 L16 9 L22 22" stroke="#1a6b3a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M12 18 L20 18" stroke="#1a6b3a" stroke-width="1.8" stroke-linecap="round"/>
 </svg>
 </div>
 <div>
@@ -1138,10 +1137,20 @@ if (state.currentView === 'quiz-results') renderView('quiz-results', state.selec
 if (state.currentView === 'knowledge-hub') renderView('knowledge-hub');
 });
 // Knowledge updates realtime
+let kuInitialLoad = true;
 window.fsOnSnapshot(window.fsCollection(window.db, 'knowledgeUpdates'), (snap) => {
-state.knowledgeUpdates = snap.docs.map(d => d.data());
+const newUpdates = snap.docs.map(d => d.data());
+const prevIds = new Set((state.knowledgeUpdates||[]).map(u=>String(u.id)));
+state.knowledgeUpdates = newUpdates;
 if (state.currentView === 'knowledge-hub') renderView('knowledge-hub');
 if (state.currentView === 'advisor-knowledge-hub') renderView('advisor-knowledge-hub');
+if (!kuInitialLoad && state.role === 'advisor') {
+const brandNew = newUpdates.filter(u => !prevIds.has(String(u.id)));
+brandNew.forEach(u => {
+showPopup('📰 עדכון ידע חדש!', u.title + (u.topic?' · '+u.topic:''), 'announcement', () => renderView('advisor-knowledge-hub'));
+});
+}
+kuInitialLoad = false;
 });
 }
 loadFromStorage();
@@ -1280,6 +1289,23 @@ return false;
 }
 
 setTimeout(() => { restoreSession(); }, 250);
+
+document.addEventListener('keydown', function(e) {
+if ((e.ctrlKey||e.metaKey) && e.key==='s') {
+e.preventDefault();
+// Try to save current modal if open
+const modal = document.getElementById('modal-overlay');
+if (modal && modal.style.display!=='none') {
+// Find and click the save/accent button in modal
+const saveBtn = document.querySelector('#modal-overlay .btn-accent');
+if (saveBtn) saveBtn.click();
+} else {
+showToast('השינויים נשמרים אוטומטית ✓');
+}
+}
+});
+
+
 function startApp(role, advisor) {
 state.role = role;
 state.currentAdvisor = advisor;
@@ -1355,7 +1381,7 @@ const content = document.getElementById('page-content');
 const actions = document.getElementById('topbar-actions');
 const title = document.getElementById('page-title');
 // Add refresh button to every page
-actions.innerHTML += `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
+actions.innerHTML += `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻ רענן</button>`;
 if (viewId === 'dashboard') {
 title.textContent = 'לוח בקרה';
 content.innerHTML = renderDashboard();
@@ -4388,6 +4414,51 @@ while(n--) u8arr[n] = bstr.charCodeAt(n);
 const blob = new Blob([u8arr], {type: mime});
 const file = new File([blob], filename, {type: mime});
 return await uploadToCloudinary(file);
+}
+
+
+// ========== EXCEL EXPORT ==========
+function exportToExcel(rows, filename) {
+const BOM = '\uFEFF';
+const csv = BOM + rows.map(row => row.map(cell => '"' + String(cell||'').replace(/"/g,'""') + '"').join(',')).join('\n');
+const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url; a.download = filename;
+document.body.appendChild(a); a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+showToast('⬇ מוריד ' + filename);
+}
+function exportQuizzesExcel() {
+const rows = [['מבחן','תחום','שאלה','סוג','תשובה נכונה','יועץ','ציון','תאריך']];
+(state.quizzes||[]).forEach(q => {
+const results = state.quizResults[String(q.id)] || [];
+if(!results.length) {
+(q.questions||[]).forEach(qu => rows.push([q.title,q.topic,qu.q,qu.type==='open'?'פתוחה':'אמריקאית',qu.type==='multi'?(qu.choices&&qu.choices[qu.correct])||'':'','','','']));
+} else {
+results.forEach(r => {
+(q.questions||[]).forEach((qu,qi) => {
+const ans = r.answers ? r.answers[qi] : null;
+const userAns = ans ? (ans.type==='open'?ans.answer:(qu.choices&&qu.choices[ans.answer])||'') : '';
+rows.push([q.title,q.topic,qu.q,qu.type==='open'?'פתוחה':'אמריקאית',
+qu.type==='multi'?(qu.choices&&qu.choices[qu.correct])||'':'',
+r.advisorName||'',r.score!=null?r.score+'%':'',r.date||'']);
+});
+});
+}
+});
+exportToExcel(rows, 'מבחנים.csv');
+}
+function exportTrainingsExcel() {
+const rows = [['כותרת','תאריך','מרצה','תחום','סיכום','קבצים','נצפה על ידי']];
+(state.trainings||[]).forEach(t => rows.push([t.title||'',t.date||'',t.lecturer||'',t.topic||'',t.summary||'',(t.materials||[]).map(m=>m.name).join('; '),(t.viewedBy||[]).join('; ')]));
+exportToExcel(rows, 'הדרכות.csv');
+}
+function exportUpdatesExcel() {
+const rows = [['כותרת','תחום','תוכן','מקור','תאריך']];
+(state.knowledgeUpdates||[]).forEach(u => rows.push([u.title||'',u.topic||'',u.content||'',u.source||'',u.date||'']));
+exportToExcel(rows, 'עדכוני_ידע.csv');
 }
 
 const bearMsgs = [
