@@ -3938,6 +3938,32 @@ renderView('live-quiz-host', quizId);
 window.launchLiveQuiz = launchLiveQuiz;
 window.startLiveQuestion = startLiveQuestion;
 window.showLiveAnswers = showLiveAnswers;
+
+function launchConfetti() {
+const colors = ['#f1c40f','#e74c3c','#3498db','#2ecc71','#9b59b6','#e67e22'];
+const container = document.createElement('div');
+container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:hidden;';
+document.body.appendChild(container);
+for (let i = 0; i < 120; i++) {
+const piece = document.createElement('div');
+const color = colors[Math.floor(Math.random()*colors.length)];
+const size = Math.random()*10+6;
+const left = Math.random()*100;
+const delay = Math.random()*3;
+const duration = Math.random()*2+2;
+piece.style.cssText = 'position:absolute;top:-20px;left:'+left+'%;width:'+size+'px;height:'+size+'px;background:'+color+';border-radius:'+(Math.random()>0.5?'50%':'2px')+';animation:confetti-fall '+duration+'s '+delay+'s ease-in forwards;';
+container.appendChild(piece);
+}
+// Add animation
+if (!document.getElementById('confetti-style')) {
+const style = document.createElement('style');
+style.id = 'confetti-style';
+style.textContent = '@keyframes confetti-fall{0%{transform:translateY(-20px) rotate(0deg);opacity:1;}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}';
+document.head.appendChild(style);
+}
+setTimeout(() => container.remove(), 6000);
+}
+
 window.showLiveFinalScores = showLiveFinalScores;
 window.endLiveQuiz = endLiveQuiz;
 window.submitLiveAnswer = submitLiveAnswer;
@@ -4033,22 +4059,35 @@ try { const doc=await window.fsGetDoc(window.fsDoc(window.db,'liveQuiz','session
 }
 const counts=[0,0,0,0];
 Object.values(answers).forEach(a=>{if(a.answer>=0&&a.answer<4)counts[a.answer]++;});
-const total=Object.values(answers).length||1;
+const total=Math.max(Object.values(answers).length,1);
 Object.entries(answers).forEach(([id,a])=>{
 if(!liveScores[id]) liveScores[id]={name:a.name||id,score:0};
 if(a.answer===q.correct) liveScores[id].score+=Math.max(100,Math.round(1000*(1-(a.time||10)/20)));
 });
 const colors=['#e74c3c','#3498db','#2ecc71','#f39c12'];
+const shapes=['▲','◆','●','■'];
+const correctCount = counts[q.correct]||0;
 const display=document.getElementById('live-question-display');
 if(display){
-let html="<div style='background:rgba(255,255,255,0.1);border-radius:12px;padding:14px;'>";
-html+="<div style='font-size:14px;font-weight:700;text-align:center;margin-bottom:10px;'>📊 " + q.q + "</div>";
-html+="<div style='display:grid;grid-template-columns:repeat(" + (q.choices||[]).length + ",1fr);gap:6px;'>";
+let html="<div style='background:rgba(0,0,0,0.3);border-radius:16px;padding:20px;'>";
+// Correct answer banner
+html+="<div style='background:#27ae60;border-radius:10px;padding:12px;text-align:center;margin-bottom:16px;'>";
+html+="<div style='font-size:13px;opacity:0.8;margin-bottom:4px;'>✅ תשובה נכונה</div>";
+html+="<div style='font-size:20px;font-weight:800;color:white;'>" + (q.choices[q.correct]||'') + "</div>";
+html+="<div style='font-size:12px;opacity:0.8;margin-top:4px;'>" + correctCount + " מתוך " + Object.values(answers).length + " ענו נכון ✓</div>";
+html+="</div>";
+// Bar chart
+html+="<div style='display:grid;grid-template-columns:repeat(" + (q.choices||[]).length + ",1fr);gap:8px;margin-bottom:16px;'>";
 (q.choices||[]).forEach((c,i)=>{
+const isCorrect = i===q.correct;
+const pct = Math.round(counts[i]/total*100);
 html+="<div style='text-align:center;'>";
-html+="<div style='background:" + colors[i] + ";border-radius:5px;padding:4px;font-size:10px;margin-bottom:3px;" + (i===q.correct?"border:2px solid #fff;":"") + "'>" + c + (i===q.correct?" ✓":"") + "</div>";
-html+="<div style='height:" + Math.max(6,Math.round(counts[i]/total*90)) + "px;background:" + colors[i] + ";border-radius:3px;'></div>";
-html+="<div style='font-size:13px;font-weight:700;margin-top:2px;'>" + counts[i] + "</div></div>";
+html+="<div style='font-size:20px;margin-bottom:4px;'>" + shapes[i] + "</div>";
+html+="<div style='height:" + Math.max(8,Math.round(counts[i]/total*120)) + "px;background:" + (isCorrect?'#27ae60':colors[i]) + ";border-radius:6px;border:" + (isCorrect?'3px solid #fff':'none') + ";transition:height 0.5s;margin-bottom:4px;'></div>";
+html+="<div style='font-size:15px;font-weight:800;color:" + (isCorrect?'#a8f0c0':'white') + ";'>" + counts[i] + "</div>";
+html+="<div style='font-size:10px;opacity:0.7;'>" + pct + "%</div>";
+html+="<div style='font-size:10px;background:" + (isCorrect?'rgba(39,174,96,0.3)':'rgba(255,255,255,0.1)') + ";border-radius:4px;padding:2px 4px;margin-top:2px;" + (isCorrect?'color:#a8f0c0;':'') + "'>" + c + (isCorrect?" ✓":"") + "</div>";
+html+="</div>";
 });
 html+="</div></div>";
 display.innerHTML=html;
@@ -4063,11 +4102,20 @@ if(!sb||!list) return;
 sb.style.display='block';
 const sorted=Object.values(liveScores).sort((a,b)=>b.score-a.score);
 const medals=['🥇','🥈','🥉'];
-list.innerHTML=sorted.slice(0,8).map((p,i)=>{
-return "<div style='display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.1);'>" +
-"<div style='font-size:14px;min-width:22px;'>" + (medals[i]||i+1) + "</div>" +
-"<div style='flex:1;font-size:13px;font-weight:" + (i<3?700:500) + ";'>" + p.name + "</div>" +
-"<div style='font-size:14px;font-weight:700;color:#a8f0c0;'>" + p.score.toLocaleString() + "</div></div>";
+const maxScore = sorted.length ? sorted[0].score : 1;
+sb.querySelector('div:first-child') && (sb.querySelector('.sb-title') && (sb.querySelector('.sb-title').textContent='🏆 לוח תוצאות'));
+list.innerHTML='<div class="sb-title" style="font-size:14px;font-weight:700;text-align:center;margin-bottom:10px;color:#a8f0c0;">🏆 לוח תוצאות</div>' +
+sorted.slice(0,8).map((p,i)=>{
+const barWidth = Math.round(p.score/maxScore*100);
+return "<div style='margin-bottom:8px;'>" +
+"<div style='display:flex;align-items:center;gap:8px;margin-bottom:3px;'>" +
+"<div style='font-size:" + (i<3?'20px':'14px') + ";min-width:28px;text-align:center;'>" + (medals[i]||('#'+(i+1))) + "</div>" +
+"<div style='flex:1;font-size:" + (i<3?'14px':'13px') + ";font-weight:" + (i<3?800:500) + ";color:" + (i===0?'#f1c40f':i===1?'#bdc3c7':i===2?'#e67e22':'white') + ";'>" + p.name + "</div>" +
+"<div style='font-size:13px;font-weight:700;color:#a8f0c0;'>" + p.score.toLocaleString() + "</div>" +
+"</div>" +
+"<div style='height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;'>" +
+"<div style='height:100%;width:" + barWidth + "%;background:linear-gradient(90deg," + (i===0?'#f1c40f':i===1?'#bdc3c7':i===2?'#e67e22':'#3498db') + ",rgba(255,255,255,0.3));border-radius:3px;transition:width 0.5s;'></div>" +
+"</div></div>";
 }).join('');
 }
 
@@ -4099,25 +4147,80 @@ state.quizResults[String(quizId)].push(entry);
 });
 await saveQuizResultToFirebase(String(quizId));
 // ===== SHOW RESULTS SCREEN =====
+// Launch confetti!
+launchConfetti();
 const medals=['🥇','🥈','🥉'];
+const podiumColors=['#f1c40f','#bdc3c7','#e67e22'];
+const podiumHeights=['120px','90px','70px'];
 const display=document.getElementById('live-question-display');
 if(display){
-let html="<div style='background:linear-gradient(135deg,rgba(26,107,58,0.4),rgba(26,107,58,0.2));border-radius:14px;padding:24px;text-align:center;'>";
-html+="<div style='font-size:36px;margin-bottom:10px;'>🏆</div>";
-html+="<div style='font-size:20px;font-weight:800;margin-bottom:16px;'>החידון הסתיים!</div>";
-html+="<div style='max-width:360px;margin:0 auto;display:flex;flex-direction:column;gap:6px;'>";
-sorted.slice(0,5).forEach((p,i)=>{
-const pct = Math.round(p.score/10);
-html+="<div style='display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.1);border-radius:8px;padding:10px 14px;'>";
-html+="<span style='font-size:20px;'>" + (medals[i]||i+1+'.') + "</span>";
-html+="<span style='flex:1;font-size:14px;font-weight:700;text-align:right;'>" + p.name + "</span>";
-html+="<span style='font-size:15px;font-weight:800;color:#a8f0c0;'>" + pct + "% (" + p.score.toLocaleString() + " נק')</span></div>";
+let html="<div style='background:linear-gradient(135deg,#0d1f35,#1a3a6b);border-radius:16px;padding:24px;text-align:center;'>";
+// Big trophy
+html+="<div style='font-size:64px;margin-bottom:8px;animation:pulse 1s ease infinite;'>🏆</div>";
+html+="<div style='font-size:24px;font-weight:900;color:white;margin-bottom:6px;'>החידון הסתיים!</div>";
+html+="<div style='font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:20px;'>" + sorted.length + " משתתפים</div>";
+// Podium (top 3)
+if(sorted.length >= 2) {
+html+="<div style='display:flex;align-items:flex-end;justify-content:center;gap:8px;margin-bottom:20px;'>";
+const podiumOrder = sorted.length>=3 ? [sorted[1],sorted[0],sorted[2]] : [null,sorted[0],sorted[1]||null];
+const podiumIdx = sorted.length>=3 ? [1,0,2] : [1,0,1];
+const podiumPos = ['🥈','🥇','🥉'];
+podiumOrder.forEach((p,pi)=>{
+if(!p) return;
+const realIdx = pi===1?0:pi===0?1:2;
+const h = pi===1?'120px':pi===0?'90px':'70px';
+const col = pi===1?'#f1c40f':pi===0?'#bdc3c7':'#e67e22';
+html+="<div style='display:flex;flex-direction:column;align-items:center;'>";
+html+="<div style='font-size:28px;margin-bottom:4px;'>" + podiumPos[pi] + "</div>";
+html+="<div style='font-size:12px;font-weight:700;color:white;margin-bottom:6px;max-width:80px;word-break:break-word;'>" + p.name + "</div>";
+html+="<div style='font-size:11px;color:" + col + ";font-weight:600;margin-bottom:4px;'>" + Math.round(p.score/10) + "%</div>";
+html+="<div style='width:70px;height:" + h + ";background:" + col + ";border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:20px;'>" + podiumPos[pi] + "</div>";
+html+="</div>";
 });
-html+="</div><div style='margin-top:12px;font-size:12px;color:rgba(255,255,255,0.7);'>התוצאות נשמרו אוטומטית ✓</div>";
-html+="<button onclick=\"renderView('knowledge-hub')\" style='margin-top:14px;padding:10px 24px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-weight:700;'>← חזרה</button></div>";
+html+="</div>";
+}
+// Full ranking list
+html+="<div style='background:rgba(255,255,255,0.08);border-radius:12px;padding:14px;text-align:right;'>";
+sorted.forEach((p,i)=>{
+const pct = Math.round(p.score/10);
+html+="<div style='display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);'>";
+html+="<div style='font-size:" + (i<3?'20px':'14px') + ";min-width:30px;text-align:center;'>" + (medals[i]||('#'+(i+1))) + "</div>";
+html+="<div style='flex:1;font-size:14px;font-weight:" + (i<3?800:500) + ";color:" + (i===0?'#f1c40f':i===1?'#bdc3c7':i===2?'#e67e22':'white') + ";'>" + p.name + "</div>";
+html+="<div style='font-size:14px;font-weight:700;color:#a8f0c0;'>" + pct + "% <span style=\'font-size:10px;opacity:0.6;\'>" + p.score.toLocaleString() + " נק\'</span></div>";
+html+="</div>";
+});
+html+="</div>";
+html+="<div style='margin-top:10px;font-size:11px;color:rgba(255,255,255,0.5);'>התוצאות נשמרו ✓</div>";
+html+="<button onclick=\"renderView('knowledge-hub')\" style='margin-top:14px;padding:12px 28px;background:#1a6b3a;border:none;border-radius:10px;color:white;cursor:pointer;font-weight:700;font-size:14px;'>← חזרה לניהול ידע</button></div>";
 display.innerHTML=html;
 }
 }
+
+function launchConfetti() {
+const colors = ['#f1c40f','#e74c3c','#3498db','#2ecc71','#9b59b6','#e67e22'];
+const container = document.createElement('div');
+container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:hidden;';
+document.body.appendChild(container);
+for (let i = 0; i < 120; i++) {
+const piece = document.createElement('div');
+const color = colors[Math.floor(Math.random()*colors.length)];
+const size = Math.random()*10+6;
+const left = Math.random()*100;
+const delay = Math.random()*3;
+const duration = Math.random()*2+2;
+piece.style.cssText = 'position:absolute;top:-20px;left:'+left+'%;width:'+size+'px;height:'+size+'px;background:'+color+';border-radius:'+(Math.random()>0.5?'50%':'2px')+';animation:confetti-fall '+duration+'s '+delay+'s ease-in forwards;';
+container.appendChild(piece);
+}
+// Add animation
+if (!document.getElementById('confetti-style')) {
+const style = document.createElement('style');
+style.id = 'confetti-style';
+style.textContent = '@keyframes confetti-fall{0%{transform:translateY(-20px) rotate(0deg);opacity:1;}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}';
+document.head.appendChild(style);
+}
+setTimeout(() => container.remove(), 6000);
+}
+
 window.showLiveFinalScores = showLiveFinalScores;
 
 async function endLiveQuiz() {
