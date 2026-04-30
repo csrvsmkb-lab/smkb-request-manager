@@ -3212,6 +3212,10 @@ resultsEl.style.display='block';
 resultsEl.innerHTML=html;
 }
 function renderKnowledgeHub() {
+if (!state.trainings) state.trainings = [];
+if (!state.quizzes) state.quizzes = [];
+if (!state.quizResults) state.quizResults = {};
+if (!state.knowledgeUpdates) state.knowledgeUpdates = [];
 const totalTrainings = state.trainings.length;
 const totalQuizzes = state.quizzes.length;
 const totalUpdates = state.knowledgeUpdates.length;
