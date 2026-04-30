@@ -1282,6 +1282,31 @@ content.innerHTML = renderInbox(state.questions.filter(q => q.status === 'open')
 const q = state.questions.find(x => x.id === extra);
 title.textContent = q ? q.subject : 'שיחה';
 content.innerHTML = renderThread(q);
+} else if (viewId === 'knowledge-hub') {
+title.textContent = 'מרכז ניהול ידע';
+actions.innerHTML = '';
+content.innerHTML = renderKnowledgeHub();
+} else if (viewId === 'advisor-knowledge-hub') {
+title.textContent = 'מרכז ידע';
+content.innerHTML = renderAdvisorKnowledgeHub();
+setTimeout(getLiveQuizStatus, 500);
+} else if (viewId === 'live-quiz-host') {
+title.textContent = 'חידון LIVE — מסך מנחה';
+actions.innerHTML = '';
+content.innerHTML = renderLiveQuizHost(extra);
+} else if (viewId === 'live-quiz-play') {
+title.textContent = 'חידון LIVE';
+content.innerHTML = renderLiveQuizPlay();
+setTimeout(startLiveQuizListener, 300);
+} else if (viewId === 'training-detail') {
+title.textContent = 'הדרכה';
+content.innerHTML = renderTrainingDetail(extra);
+} else if (viewId === 'quiz-detail') {
+title.textContent = 'מבחן ידע';
+content.innerHTML = renderQuizDetail(extra);
+} else if (viewId === 'quiz-results') {
+title.textContent = 'תוצאות מבחן';
+content.innerHTML = renderQuizResults(extra);
 } else if (viewId === 'announcements') {
 title.textContent = 'עדכונים לכולם';
 actions.innerHTML = `<button class="btn-sm btn-accent" onclick="openNewAnnouncementModal()">+ עדכון חדש</button>`;
