@@ -4071,10 +4071,34 @@ return "<div style='display:flex;align-items:center;gap:8px;padding:5px 0;border
 }).join('');
 }
 
-function showLiveFinalScores(quizId) {
+async function showLiveFinalScores(quizId) {
 if(liveQuizTimer) clearInterval(liveQuizTimer);
-if(window.db) window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','session'),{status:'finished',quizId});
+if(window.db) await window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','session'),{status:'finished',quizId: String(quizId)});
 const sorted=Object.values(liveScores).sort((a,b)=>b.score-a.score);
+// ===== SAVE RESULTS TO quizResults =====
+const maxScore = sorted.length ? sorted[0].score : 0;
+const now = new Date();
+const dateStr = now.toLocaleDateString('he-IL');
+const timeStr = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+if (!state.quizResults) state.quizResults = {};
+if (!state.quizResults[String(quizId)]) state.quizResults[String(quizId)] = [];
+// Add/update each participant's result
+Object.entries(liveScores).forEach(([advisorId, data]) => {
+const advisor = state.advisors.find(a=>a.name===data.name||a.id===advisorId);
+const entry = {
+advisorId: advisor?.id || advisorId,
+advisorName: data.name,
+score: Math.round(data.score / 10), // Convert points to percentage (1000pts = 100%)
+liveScore: data.score,
+date: dateStr,
+time: timeStr,
+fromLive: true
+};
+state.quizResults[String(quizId)] = (state.quizResults[String(quizId)]||[]).filter(r=>r.advisorId!==entry.advisorId);
+state.quizResults[String(quizId)].push(entry);
+});
+await saveQuizResultToFirebase(String(quizId));
+// ===== SHOW RESULTS SCREEN =====
 const medals=['🥇','🥈','🥉'];
 const display=document.getElementById('live-question-display');
 if(display){
@@ -4083,15 +4107,18 @@ html+="<div style='font-size:36px;margin-bottom:10px;'>🏆</div>";
 html+="<div style='font-size:20px;font-weight:800;margin-bottom:16px;'>החידון הסתיים!</div>";
 html+="<div style='max-width:360px;margin:0 auto;display:flex;flex-direction:column;gap:6px;'>";
 sorted.slice(0,5).forEach((p,i)=>{
+const pct = Math.round(p.score/10);
 html+="<div style='display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.1);border-radius:8px;padding:10px 14px;'>";
 html+="<span style='font-size:20px;'>" + (medals[i]||i+1+'.') + "</span>";
 html+="<span style='flex:1;font-size:14px;font-weight:700;text-align:right;'>" + p.name + "</span>";
-html+="<span style='font-size:15px;font-weight:800;color:#a8f0c0;'>" + p.score.toLocaleString() + "</span></div>";
+html+="<span style='font-size:15px;font-weight:800;color:#a8f0c0;'>" + pct + "% (" + p.score.toLocaleString() + " נק')</span></div>";
 });
-html+="</div><button onclick=\"renderView('knowledge-hub')\" style='margin-top:16px;padding:10px 24px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-weight:700;'>← חזרה</button></div>";
+html+="</div><div style='margin-top:12px;font-size:12px;color:rgba(255,255,255,0.7);'>התוצאות נשמרו אוטומטית ✓</div>";
+html+="<button onclick=\"renderView('knowledge-hub')\" style='margin-top:14px;padding:10px 24px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-weight:700;'>← חזרה</button></div>";
 display.innerHTML=html;
 }
 }
+window.showLiveFinalScores = showLiveFinalScores;
 
 async function endLiveQuiz() {
 if(liveQuizTimer) clearInterval(liveQuizTimer);
