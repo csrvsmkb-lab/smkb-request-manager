@@ -6,7 +6,6 @@
 <title>מרכז ייעוץ לימודים</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script type="module">
-// Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, updateDoc, addDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
@@ -22,7 +21,6 @@ measurementId: "G-GJWXTHWP2L"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
-// Expose to global scope for use in main script
 window.db = db;
 window.storage = storage;
 window.fsCollection = collection;
@@ -42,7 +40,6 @@ window.storageUpload = uploadString;
 window.storageGetURL = getDownloadURL;
 window.storageDelete = deleteObject;
 window.firebaseReady = true;
-// Signal ready
 window.dispatchEvent(new Event('firebase-ready'));
 console.log("Firebase initialized OK");
 </script>
@@ -703,7 +700,6 @@ transition:opacity 0.3s, transform 0.3s;
 </div>
 <div class="toast" id="toast"></div>
 <script>
-// ========== STATE ==========
 let state = {
 role: 'manager',
 currentAdvisor: null,
@@ -805,9 +801,7 @@ radius: '10',
 }
 }
 };
-
 const SMKB_LOGO = "data:image/png;base64,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";
-// ========== EYE ICON ==========
 function togglePw(inputId, iconId) {
 const inp = document.getElementById(inputId);
 const icon = document.getElementById(iconId);
@@ -820,10 +814,8 @@ inp.type = 'password';
 icon.innerHTML = '<path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.4"/>';
 }
 }
-// ========== LOCAL STORAGE ==========
 const LS_KEY = 'merkaz_yiuts_v1';
 function saveToStorage() {
-// Save settings/config locally (passwords, theme etc)
 try {
 const localData = {
 managerPassword: state.settings.managerPassword,
@@ -835,13 +827,11 @@ theme: state.settings.theme,
 };
 localStorage.setItem(LS_KEY, JSON.stringify(localData));
 } catch(e) {}
-// Save to Firebase
 saveToFirebase();
 }
 async function saveToFirebase() {
 if (!window.db) return;
 try {
-// Save settings doc
 await window.fsSetDoc(window.fsDoc(window.db, 'settings', 'main'), {
 managerPassword: state.settings.managerPassword,
 centerName: state.settings.centerName,
@@ -855,15 +845,12 @@ theme: state.settings.theme,
 async function saveQuestionToFirebase(q) {
 if (!window.db) return;
 try {
-// Keep full file data in local fileStore, save only metadata to Firestore
 const qClean = JSON.parse(JSON.stringify(q));
 qClean.messages = qClean.messages.map(m => {
 if (m.attachment && m.attachment.data) {
-// Keep full data in fileStore for local preview
 if (m.attachment.data.length > 100) {
 fileStore[m.attachment.name] = m.attachment.data;
 }
-// Save only metadata + storageUrl to Firestore (no large base64)
 return {...m, attachment: {
 name: m.attachment.name,
 size: m.attachment.size,
@@ -884,7 +871,6 @@ if (!window.db) return;
 try {
 for (const t of state.trainings) {
 const tClean = {...t};
-// Keep file data in memory, save metadata only
 if (tClean.materials) tClean.materials = tClean.materials.map(m => ({...m, data: m.data ? '(local)' : null}));
 await window.fsSetDoc(window.fsDoc(window.db, 'trainings', String(t.id)), tClean);
 }
@@ -940,7 +926,6 @@ messages: state.directChats[advisorId] || []
 } catch(e) { console.warn("Firebase DC save error:", e); }
 }
 function loadFromStorage() {
-// Load local settings (passwords, theme, advisors config)
 try {
 const raw = localStorage.getItem(LS_KEY);
 if (raw) {
@@ -962,7 +947,6 @@ state.advisors.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 async function loadFromFirebase() {
 if (!window.db) return;
 try {
-// Load settings
 const settingsDoc = await window.fsGetDoc(window.fsDoc(window.db, 'settings', 'main'));
 if (settingsDoc.exists()) {
 const data = settingsDoc.data();
@@ -979,7 +963,6 @@ state.advisors.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 if (data.topicTree) state.topicTree = data.topicTree;
 if (data.topics && data.topics.length) state.topics = data.topics;
 if (data.theme) state.settings.theme = {...state.settings.theme, ...data.theme};
-// Sync to localStorage
 localStorage.setItem(LS_KEY, JSON.stringify({
 managerPassword: state.settings.managerPassword,
 centerName: state.settings.centerName,
@@ -989,22 +972,18 @@ topics: state.topics,
 theme: state.settings.theme,
 }));
 }
-// Load questions
 const qSnap = await window.fsGetDocs(window.fsCollection(window.db, 'questions'));
 if (!qSnap.empty) {
 state.questions = qSnap.docs.map(d => d.data());
 }
-// Load knowledge base
 const kSnap = await window.fsGetDocs(window.fsCollection(window.db, 'knowledge'));
 if (!kSnap.empty) {
 state.knowledge = kSnap.docs.map(d => d.data());
 }
-// Load announcements
 const annSnap = await window.fsGetDocs(window.fsCollection(window.db, 'announcements'));
 if (!annSnap.empty) {
 state.announcements = annSnap.docs.map(d => d.data());
 }
-// Load direct chats
 const dcSnap = await window.fsGetDocs(window.fsCollection(window.db, 'directChats'));
 dcSnap.docs.forEach(d => { state.directChats[d.id] = d.data().messages || []; });
 restoreFilesFromMessages();
@@ -1012,19 +991,15 @@ restoreFilesFromMessages();
 }
 function startRealtimeListeners() {
 if (!window.db) return;
-// Listen for question changes
 window.fsOnSnapshot(window.fsCollection(window.db, 'questions'), (snap) => {
 const newQs = snap.docs.map(d => d.data());
 const prevQs = state.questions;
-// Always process — don't skip based on stringify comparison
 {
-// Detect new manager reply for advisor
 if (state.role === 'advisor' && state.currentAdvisor) {
 newQs.forEach(newQ => {
 if (newQ.advisorId !== state.currentAdvisor.id) return;
 const oldQ = prevQs.find(q => q.id === newQ.id);
 if (!oldQ) {
-// Brand new question that got a reply already — show popup
 const managerMsgs = newQ.messages.filter(m => m.from === 'manager');
 if (managerMsgs.length > 0) {
 showPopup('תשובה חדשה ממנהל המרכז', newQ.subject + ': ' + managerMsgs[managerMsgs.length-1].text.substring(0,60), 'reply', () => openAdvisorThread(newQ.id));
@@ -1040,7 +1015,6 @@ playNotifSound('reply');
 }
 });
 }
-// Detect new question for manager
 if (state.role === 'manager') {
 const newOnes = newQs.filter(nq => !prevQs.find(pq => pq.id === nq.id));
 newOnes.forEach(q => {
@@ -1057,22 +1031,18 @@ if (state.currentView === 'advisor-inbox') renderView('advisor-inbox');
 if (state.currentView === 'advisor-dashboard') renderView('advisor-dashboard');
 }
 });
-// Listen for direct chat changes
 window.fsOnSnapshot(window.fsCollection(window.db, 'directChats'), (snap) => {
 snap.docs.forEach(d => { state.directChats[d.id] = d.data().messages || []; });
 if (state.currentView === 'direct-chat' || state.currentView === 'direct-chat-open' || state.currentView === 'advisor-direct') {
 renderView(state.currentView, state.selectedThread);
 }
 });
-// Listen for announcements
 window.fsOnSnapshot(window.fsCollection(window.db, 'announcements'), (snap) => {
 state.announcements = snap.docs.map(d => d.data());
 if (state.currentView === 'announcements') renderView('announcements');
 if (state.currentView === 'advisor-announcements') renderView('advisor-announcements');
-// Show popup for new unread announcements
 if (state.role === 'advisor') {
 checkNewAnnouncements();
-// Show popup for unread announcements
 const advisorId = state.currentAdvisor?.id;
 const advisorName = state.currentAdvisor?.name;
 const unread = state.announcements.filter(a => !a.readBy || (!a.readBy.includes(advisorId) && !a.readBy.includes(advisorName)));
@@ -1082,23 +1052,19 @@ showPopup('עדכון חדש ממנהל המרכז 📢', unread[unread.length-1
 }
 updateAnnouncementBadge();
 });
-// Listen for knowledge changes
 window.fsOnSnapshot(window.fsCollection(window.db, 'knowledge'), (snap) => {
 state.knowledge = snap.docs.map(d => d.data());
 if (state.currentView === 'knowledge') renderView('knowledge');
 });
 }
-// Load on page start
 loadFromStorage();
 try { const savedFs = localStorage.getItem(LS_KEY+"_fontsize"); if(savedFs) state.settings.theme.fontSize=savedFs; } catch(e){}
 applyTheme(state.settings.theme);
-// Load from Firebase when ready
 function initFirebase() {
 loadFromFirebase().then(() => {
 applyTheme(state.settings.theme);
 startRealtimeListeners();
 if (state.role) buildNav();
-// Show unread announcements popup for advisors immediately after load
 if (state.role === 'advisor' && state.currentAdvisor) {
 setTimeout(() => {
 const aId = state.currentAdvisor.id;
@@ -1126,24 +1092,20 @@ initFirebase();
 } else {
 window.addEventListener('firebase-ready', initFirebase);
 }
-// Update password hint after load
 (function() {
 const hint = document.querySelector('#login-screen p:last-child');
 if (hint) hint.style.display = 'none'; // hide hardcoded hint, passwords come from storage now
 })();
-// ========== THEME ENGINE ==========
 function applyTheme(t) {
 if (!t) t = state.settings.theme;
 const r = document.documentElement.style;
 r.setProperty('--accent', t.accent || '#1a6b3a');
-// Derive lighter version
 r.setProperty('--accent-light', t.accentLight || '#e4f4ec');
 r.setProperty('--bg', t.bg || '#f2f7f3');
 r.setProperty('--surface2', t.surface2 || '#e8f2ea');
 r.setProperty('--border', t.border || '#c8deca');
 r.setProperty('--radius', (t.radius||'10')+'px');
 r.setProperty('--radius-sm', Math.max(3,parseInt(t.radius||10)-4)+'px');
-// Font
 const fontUrl = {
 'Heebo': 'https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap',
 'Assistant': 'https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700&display=swap',
@@ -1159,7 +1121,6 @@ link.href = fontUrl[t.font];
 if (t.font) document.body.style.fontFamily = "'" + t.font + "', sans-serif";
 if (t.fontSize) document.body.style.fontSize = t.fontSize + 'px';
 }
-// ========== LOGIN ==========
 let loginRole = 'manager';
 function setRole(r) {
 loginRole = r;
@@ -1198,13 +1159,11 @@ loginRole = 'manager';
 document.querySelectorAll('.role-tab').forEach((t,i) => t.classList.toggle('active', i===0));
 document.getElementById('advisor-select-group').style.display = 'none';
 }
-// ========== APP START ==========
 function startApp(role, advisor) {
 state.role = role;
 state.currentAdvisor = advisor;
 document.getElementById('login-screen').style.display = 'none';
 document.getElementById('app').style.display = 'flex';
-// User info
 const name = role === 'manager' ? 'מנהל' : advisor.name;
 const initials = name.substring(0,1);
 document.getElementById('user-avatar').textContent = initials;
@@ -1219,7 +1178,6 @@ initNotifications();
 buildNav();
 if (role === 'manager') {
 renderView('dashboard');
-// Check overdue after brief delay
 setTimeout(() => {
 const overdue = getOverdueQuestions();
 if (overdue.length > 0) {
@@ -1228,7 +1186,6 @@ sendNotification(`⚠ ${overdue.length} שאלות באיחור`, overdue.map(q=
 }, 1500);
 } else renderView('advisor-inbox');
 }
-// ========== NAV ==========
 function buildNav() {
 const nav = document.getElementById('sidebar-nav');
 let items = [];
@@ -1267,7 +1224,6 @@ document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')
 const el = document.getElementById('nav-' + id);
 if (el) el.classList.add('active');
 }
-// ========== VIEWS ==========
 function renderView(viewId, extra) {
 state.currentView = viewId;
 setActiveNav(viewId);
@@ -1332,7 +1288,6 @@ title.textContent = item ? item.title : 'מאמר';
 content.innerHTML = renderKbDetail(item);
 }
 }
-// ========== DASHBOARD ==========
 function renderDashboard() {
 const all = state.questions;
 const open = all.filter(q => q.status === 'open').length;
@@ -1350,7 +1305,6 @@ total: all.filter(q => q.advisorId === a.id).length,
 open: all.filter(q => q.advisorId === a.id && q.status === 'open').length,
 })).sort((a,b) => b.total - a.total);
 return `
-<!-- Global search -->
 <div class="search-bar" style="margin-bottom:18px;">
 <input class="search-input" id="global-search" placeholder="🔍 חיפוש גלובלי — שאלות, סטודנטים, יועצים, בסיס ידע..." oninput="globalSearch()" style="font-size:14px;" />
 <button class="btn-sm" onclick="document.getElementById('global-search').value='';document.getElementById('global-results').innerHTML='';document.getElementById('global-results').style.display='none'">נקה</button>
@@ -1393,7 +1347,6 @@ ${a.name}
 </table>
 </div>
 </div>
-<!-- Section 1: Unanswered (last msg from advisor) -->
 <div class="card" style="margin-top:0;border-right:4px solid #e74c3c;">
 <div class="card-header">
   <span class="card-title" style="color:#e74c3c;">🔴 טרם טופלו — ממתינות לתשובתך</span>
@@ -1414,8 +1367,6 @@ ${(()=>{
     </div>`).join('');
 })()}
 </div>
-
-<!-- Section 2: Awaiting advisor reply (last msg from manager) -->
 <div class="card" style="margin-top:0;border-right:4px solid #e67e22;">
 <div class="card-header">
   <span class="card-title" style="color:#e67e22;">🟡 בטיפול — ממתין לתגובת היועץ</span>
@@ -1434,8 +1385,6 @@ ${(()=>{
     </div>`).join('');
 })()}
 </div>
-
-<!-- Section 3: Closed -->
 <div class="card" style="margin-top:0;border-right:4px solid #1a6b3a;">
 <div class="card-header">
   <span class="card-title" style="color:#1a6b3a;">✅ טופלו ונסגרו</span>
@@ -1456,7 +1405,6 @@ ${(()=>{
 })()}
 </div>`;
 }
-// ========== INBOX ==========
 function dueDateBadge(q) {
 if (!q.dueDate || q.status === 'closed') return '';
 const today = new Date(); today.setHours(0,0,0,0);
@@ -1532,7 +1480,6 @@ function advisorAvatar(q) {
 const a = state.advisors.find(x => x.id === q.advisorId) || { color: '#888', bg: '#eee', name: q.advisorName };
 return `<div class="inbox-avatar" style="background:${a.bg};color:${a.color};">${a.name[0]}</div>`;
 }
-// ========== THREAD ==========
 function openThread(id) {
 state.selectedThread = id;
 renderView('thread', id);
@@ -1630,7 +1577,6 @@ q.topic = document.getElementById('reply-topic').value;
 const sub = document.getElementById('reply-subtopic');
 if (sub) q.subtopic = sub.value;
 }
-// ========== ADVISOR DASHBOARD ==========
 function renderAdvisorDashboard() {
 const advisorId = state.currentAdvisor.id;
 const advisorName = state.currentAdvisor.name;
@@ -1639,14 +1585,12 @@ const open = myQ.filter(q => q.status === 'open');
 const closed = myQ.filter(q => q.status === 'closed');
 const unread = state.announcements.filter(a => !a.readBy || (!a.readBy.includes(advisorId) && !a.readBy.includes(advisorName)));
 const a = state.advisors.find(x => x.id === advisorId);
-// Topic breakdown
 const topicCounts = {};
 myQ.forEach(q => { topicCounts[q.topic] = (topicCounts[q.topic]||0)+1; });
 const topicColors = { 'תואר ראשון':'#2980b9','תואר שני':'#1a6b3a','הסבה להוראה':'#e67e22','לימודי תעודה':'#8b2d6b','כללי':'#7f8c8d' };
 const maxCount = Math.max(...Object.values(topicCounts), 1);
 const recentQ = [...myQ].sort((a,b)=>b.id-a.id).slice(0,3);
 return `
-<!-- Font size + search bar for advisor -->
 <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;background:#fff;padding:10px 16px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
 <span style="font-size:12px;color:#4a6650;font-weight:600;white-space:nowrap;">גודל טקסט:</span>
 <button onclick="changeFontSize(-1)" style="width:30px;height:30px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;font-size:18px;cursor:pointer;color:#1a6b3a;font-weight:700;line-height:1;">−</button>
@@ -1731,7 +1675,6 @@ ${unread.length > 0 ? `
 </div>` : ''}
 `;
 }
-// ========== ADVISOR INBOX ==========
 function renderAdvisorInbox() {
 const myQ = state.questions.filter(q => q.advisorId === state.currentAdvisor.id).sort((a,b) => b.id - a.id);
 if (!myQ.length) return '<div class="empty-state"><p>אין שאלות עדיין. לחץ "שאלה חדשה" כדי לשאול.</p></div>';
@@ -1814,7 +1757,6 @@ deleteQuestionFromFirebase(qId);
 showToast('השאלה נמחקה');
 renderView('advisor-inbox');
 }
-// ========== NEW QUESTION ==========
 function renderNewQuestion() {
 const today = new Date().toISOString().split('T')[0];
 return `
@@ -1933,11 +1875,8 @@ notifyManager(state.currentAdvisor.name, subject, text);
 showToast('השאלה נשלחה בהצלחה!');
 renderView('advisor-inbox');
 }
-// ========== FILE UPLOAD ==========
 let pendingFile = null;
-// In-memory file store (survives current session)
 const fileStore = {};
-
 function handleFileSelect(input) {
 const file = input.files[0];
 if (file) attachFile(file);
@@ -1966,7 +1905,6 @@ const preview = document.getElementById('file-preview');
 preview.style.display = 'flex';
 const dropZone = document.getElementById('file-drop-zone');
 if (dropZone) dropZone.style.borderColor = 'var(--accent)';
-// Upload to Firebase Storage in background
 if (window.storage) {
 const path = 'attachments/' + Date.now() + '_' + file.name;
 const fileRef = window.storageRef(window.storage, path);
@@ -1994,7 +1932,6 @@ if (input) input.value = '';
 const dropZone = document.getElementById('file-drop-zone');
 if (dropZone) dropZone.style.borderColor = '#d0ddd3';
 }
-
 function getFileData(name) {
 if (fileStore[name]) return fileStore[name];
 if (fileStore[name + '_url']) return fileStore[name + '_url'];
@@ -2008,12 +1945,9 @@ if (m.attachment.data && m.attachment.data.length > 100) { fileStore[name]=m.att
 }
 return null;
 }
-
 function isStorageUrl(str) {
 return str && (str.startsWith('https://') || str.startsWith('http://'));
 }
-
-// Restore any file data from messages into fileStore on load
 function restoreFilesFromMessages() {
 for (const q of state.questions) {
 for (const m of q.messages) {
@@ -2024,7 +1958,6 @@ if (m.attachment.data && m.attachment.data.length > 100) fileStore[m.attachment.
 }
 }
 }
-
 function fileAttachmentHTML(attachment) {
 if (!attachment) return '';
 const isImage = attachment.type && attachment.type.startsWith('image');
@@ -2041,7 +1974,6 @@ const hasData = !!(storageUrl || localData || fileStore[attachment.name]);
 const canPreview = isImage || isPdf || storageUrl;
 const storagePath = attachment.storagePath || '';
 const isManager = state.role === 'manager';
-
 return '<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.18);border-radius:10px;border:1px solid rgba(255,255,255,0.3);">' +
 '<div style="display:flex;align-items:center;gap:10px;">' +
 '<span style="font-size:20px;">' + icon + '</span>' +
@@ -2056,7 +1988,6 @@ return '<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255
 '</div>' +
 '</div></div>';
 }
-
 function isStorageUrl(str) {
 return str && (str.startsWith('https://') || str.startsWith('http://'));
 }
@@ -2074,7 +2005,6 @@ document.body.appendChild(a); a.click(); document.body.removeChild(a);
 showToast('מוריד: ' + name);
 }
 }
-
 function previewFile(nameEnc) {
 const name = decodeURIComponent(nameEnc);
 const data = getFileData(name);
@@ -2106,12 +2036,10 @@ overlay.innerHTML = "<div style=\"display:flex;flex-direction:column;align-items
 "</div>" + contentHTML + "</div>";
 document.body.appendChild(overlay);
 }
-
 function downloadFile(btn) {
 const name = decodeURIComponent(btn.getAttribute('data-name'));
 downloadFileByName(encodeURIComponent(name));
 }
-
 async function deleteStorageFile(pathEnc, nameEnc, btn) {
 const path = decodeURIComponent(pathEnc);
 const name = decodeURIComponent(nameEnc);
@@ -2121,7 +2049,6 @@ if (window.storage) {
 const fileRef = window.storageRef(window.storage, path);
 await window.storageDelete(fileRef);
 }
-// Remove from all messages
 for (const q of state.questions) {
 for (const m of q.messages) {
 if (m.attachment && m.attachment.name === name) {
@@ -2135,17 +2062,13 @@ await saveQuestionToFirebase(q);
 delete fileStore[name];
 delete fileStore[name + '_url'];
 showToast('קובץ נמחק מהאחסון');
-// Hide the delete button and update display
 if (btn) btn.closest('div[style*="border-radius:10px"]').querySelector('div:last-child').innerHTML = '<span style="font-size:10px;opacity:0.5;padding:4px;">נמחק</span>';
 } catch(e) {
 console.error(e);
 showToast('שגיאה במחיקת הקובץ');
 }
 }
-
-
 function downloadAttachment(nameEncoded, hasData) {
-// Find in messages
 const name = decodeURIComponent(nameEncoded);
 for (const q of state.questions) {
 for (const m of q.messages) {
@@ -2160,7 +2083,6 @@ return;
 }
 showToast('הקובץ אינו זמין להורדה');
 }
-// ========== ANNOUNCEMENTS ==========
 function renderAnnouncements() {
 const anns = [...state.announcements].sort((a,b) => b.id - a.id);
 return `<div class="card">
@@ -2227,7 +2149,6 @@ readBy: [],
 };
 state.announcements.push(ann);
 saveAnnouncementsToFirebase();
-// Notify all
 sendNotification('עדכון חדש ממנהל המרכז', title + ': ' + body.substring(0,50), 'new');
 closeModal();
 showToast('העדכון נשלח לכל היועצים!');
@@ -2286,10 +2207,8 @@ document.body.appendChild(popup);
 setTimeout(() => { const el = document.getElementById('ann-popup'); if(el) el.remove(); }, 8000);
 }
 }
-// ========== DIRECT CHAT ==========
 function renderDirectChat(advisorId) {
 if (!advisorId) {
-// Show advisor list to pick
 return `<div class="card">
 <div class="card-title" style="margin-bottom:14px;">בחר יועץ לשיחה</div>
 <div>
@@ -2390,10 +2309,8 @@ saveDcToFirebase(advisorId);
 showToast('הודעה נשלחה למנהל');
 renderView('advisor-direct');
 }
-// ========== KNOWLEDGE ==========
 function renderKnowledge() {
 const topicColors = {'תואר ראשון':'tag-blue','תואר שני':'tag-green','הסבה להוראה':'tag-orange','לימודי תעודה':'tag-pink','אחר':'tag-gray'};
-// Group by topic
 const grouped = {};
 state.topics.forEach(t => { grouped[t] = state.knowledge.filter(k=>k.topic===t); });
 return `
@@ -2425,7 +2342,6 @@ ${state.knowledge.length === 0
 }
 </div>`;
 }
-
 function renderKbItems(items) {
 if (!items || !items.length) return '';
 return items.map(k => {
@@ -2449,7 +2365,6 @@ ${state.role==='manager'
 </div>`;
 }).join('');
 }
-
 function getFileIcon(name) {
 const ext = (name||'').toLowerCase();
 if (ext.endsWith('.pdf')) return '📕';
@@ -2459,7 +2374,6 @@ if (ext.match(/\.(xls|xlsx)$/)) return '📊';
 if (ext.match(/\.(ppt|pptx)$/)) return '📑';
 return '📎';
 }
-
 function filterKb() {
 const q = (document.getElementById('kb-search')||{}).value?.toLowerCase()||'';
 const t = (document.getElementById('kb-filter-topic')||{}).value||'';
@@ -2473,7 +2387,6 @@ return mq && mt && mtype;
 const list = document.getElementById('kb-list');
 if (list) {
 if (!filtered.length) { list.innerHTML = '<div class="card"><div class="empty-state"><p>לא נמצאו תוצאות</p></div></div>'; return; }
-// Group filtered by topic
 const groups = {};
 filtered.forEach(k => { if(!groups[k.topic]) groups[k.topic]=[]; groups[k.topic].push(k); });
 list.innerHTML = Object.entries(groups).map(([topic,items])=>`
@@ -2483,7 +2396,6 @@ list.innerHTML = Object.entries(groups).map(([topic,items])=>`
 </div>`).join('');
 }
 }
-
 function renderKbDetail(k) {
 if (!k) return '<p>לא נמצא</p>';
 return `<div class="card">
@@ -2499,7 +2411,6 @@ ${k.subtopic?`<span class="tag tag-gray">${k.subtopic}</span>`:''}
 <div style="font-size:14px;line-height:1.8;white-space:pre-wrap;color:#1a2e1f;">${k.content||''}</div>
 </div>`;
 }
-
 function openAddKbModal() {
 openModal('הוסף פריט לבסיס הידע', `
 <div class="form-row">
@@ -2533,7 +2444,6 @@ openModal('הוסף פריט לבסיס הידע', `
 </div>
 `, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveKb()">שמור</button>`);
 }
-
 let pendingKbFile = null;
 function toggleKbType() {
 const type = document.getElementById('kb-type')?.value;
@@ -2643,7 +2553,6 @@ a.href = k.fileData; a.download = k.fileName||'file';
 document.body.appendChild(a); a.click(); document.body.removeChild(a);
 showToast('מוריד: '+k.fileName);
 }
-// ========== REPORTS ==========
 function renderReports() {
 const all = state.questions;
 const topicCounts = {};
@@ -2717,7 +2626,6 @@ window.print();
 }
 function exportExcel() {
 const all = state.questions;
-// Build CSV with BOM for Hebrew Excel support
 const bom = '\uFEFF';
 const headers = ['תאריך', 'יועץ', 'סטודנט', 'כותרת שאלה', 'תחום', 'מסלול', 'מהות הפנייה', 'תאריך יעד', 'סטטוס', 'מספר הודעות'];
 const rows = all.sort((a,b)=>b.id-a.id).map(q => [
@@ -2732,7 +2640,6 @@ q.dueDate || '',
 q.status === 'open' ? 'פתוח' : 'סגור',
 q.messages.length
 ]);
-// Topic summary sheet data
 const topicCounts = {};
 state.topics.forEach(t => topicCounts[t] = 0);
 all.forEach(q => { if (topicCounts[q.topic] !== undefined) topicCounts[q.topic]++; });
@@ -2762,7 +2669,6 @@ a.click();
 URL.revokeObjectURL(url);
 showToast('הקובץ הורד בהצלחה');
 }
-// ========== SETTINGS ==========
 function renderSettings() {
 return `
 <div class="card settings-section">
@@ -2985,7 +2891,6 @@ state.topicTree[t] = el.value.split(',').map(s => s.trim()).filter(Boolean);
 });
 showToast('נושאים עודכנו'); saveToStorage(); renderView('settings');
 }
-// ========== HELPERS ==========
 function topicTagClass(topic) {
 const map = {
 'תואר ראשון':'tag-blue','תואר שני':'tag-green',
@@ -3089,7 +2994,6 @@ function testNotification() {
 sendNotification('בדיקת מערכת', 'ההתראות עובדות בהצלחה!', 'reply');
 showToast('נשלחה התראת ניסיון');
 }
-// ========== NOTIFICATIONS ==========
 let notifPermission = false;
 function initNotifications() {
 if (!('Notification' in window)) return;
@@ -3105,11 +3009,9 @@ const osc = ctx.createOscillator();
 const gain = ctx.createGain();
 osc.connect(gain); gain.connect(ctx.destination);
 if (type === 'reply') {
-// Two-tone pleasant chime for manager reply
 osc.frequency.setValueAtTime(880, ctx.currentTime);
 osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.12);
 } else {
-// Single ping for new question
 osc.frequency.setValueAtTime(660, ctx.currentTime);
 }
 osc.type = 'sine';
@@ -3121,16 +3023,13 @@ osc.stop(ctx.currentTime + 0.5);
 }
 function sendNotification(title, body, type) {
 playNotifSound(type);
-// Always show in-app popup
 showPopup(title, body, type === 'new' ? 'new' : 'reply');
-// Also browser notification if permitted
 if (!notifPermission) return;
 try {
 const n = new Notification(title, { body, icon: '', dir: 'rtl', lang: 'he' });
 setTimeout(() => n.close(), 5000);
 } catch(e) {}
 }
-// Called when manager replies to advisor
 function notifyAdvisor(q, replyText) {
 sendNotification(
 `תשובה חדשה ממנהל — ${q.advisorName}`,
@@ -3138,7 +3037,6 @@ sendNotification(
 'reply'
 );
 }
-// Called when advisor sends new question or message to manager
 function notifyManager(advisorName, subject, text) {
 sendNotification(
 `שאלה חדשה מ${advisorName}`,
@@ -3146,7 +3044,6 @@ sendNotification(
 'new'
 );
 }
-// ========== SVG ICONS
 function dashIcon() { return `<svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.8"/><rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.8"/><rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/><rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/></svg>`; }
 function inboxIcon() { return `<svg viewBox="0 0 14 14" fill="none"><path d="M1.5 2.5h11v7.5a1 1 0 01-1 1h-9a1 1 0 01-1-1V2.5z" stroke="currentColor" stroke-width="1.1"/><path d="M1.5 2.5l5 4.5 5-4.5" stroke="currentColor" stroke-width="1.1"/></svg>`; }
 function docIcon() { return `<svg viewBox="0 0 14 14" fill="none"><rect x="2" y="1" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>`; }
@@ -3156,7 +3053,6 @@ function plusIcon() { return `<svg viewBox="0 0 14 14" fill="none"><path d="M7 2
 function hubIcon() { return `<svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 7h5M7 4.5v5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`; }
 function megaphoneIcon() { return `<svg viewBox="0 0 14 14" fill="none"><path d="M1 5h2v4H1V5zM3 5l7-3v10L3 9V5zM11 6.5h2M11 4l1.5-1M11 9l1.5 1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>`; }
 function chatIcon() { return `<svg viewBox="0 0 14 14" fill="none"><path d="M1 1h12v8H8.5L6 12V9H1V1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>`; }
-// ========== POPUP NOTIFICATION SYSTEM ==========
 let notifIdCounter = 0;
 function showPopup(title, msg, type='reply', onClick=null) {
 const container = document.getElementById('notif-container');
@@ -3179,7 +3075,6 @@ div.innerHTML = `
 `;
 if (onClick) div.addEventListener('click', (e) => { if(e.target.className!=='notif-close'){onClick();dismissPopup(id);} });
 container.appendChild(div);
-// Auto dismiss after 6 seconds
 setTimeout(() => dismissPopup(id), 6000);
 }
 function dismissPopup(id) {
@@ -3188,31 +3083,24 @@ if (!el) return;
 el.classList.add('removing');
 setTimeout(() => el.remove(), 300);
 }
-
-
 function changeFontSize(delta) {
 const current = parseInt(state.settings.theme.fontSize || 14);
 const newSize = Math.min(20, Math.max(12, current + delta));
 state.settings.theme.fontSize = String(newSize);
 document.body.style.fontSize = newSize + 'px';
-// Update label if visible
 const label = document.getElementById('adv-font-size-label');
 if (label) label.textContent = newSize + 'px';
 const managerLabel = document.getElementById('font-size-val');
 if (managerLabel) managerLabel.textContent = newSize + 'px';
-// Save
 try { localStorage.setItem(LS_KEY + '_fontsize', String(newSize)); } catch(e) {}
 saveToStorage();
 showToast('גודל טקסט: ' + newSize + 'px');
 }
-
-// ========== GLOBAL SEARCH ==========
 function globalSearch() {
 const q = document.getElementById('global-search')?.value?.trim().toLowerCase();
 const resultsEl = document.getElementById('global-results');
 if (!resultsEl) return;
 if (!q || q.length < 2) { resultsEl.style.display='none'; return; }
-// Search questions
 const qResults = state.questions.filter(item =>
 item.subject.toLowerCase().includes(q) ||
 item.advisorName.toLowerCase().includes(q) ||
@@ -3221,7 +3109,6 @@ item.topic.toLowerCase().includes(q) ||
 (item.subtopic||'').toLowerCase().includes(q) ||
 item.messages.some(m=>(m.text||'').toLowerCase().includes(q))
 ).slice(0,5);
-// Search knowledge
 const kResults = state.knowledge.filter(k =>
 k.title.toLowerCase().includes(q) ||
 (k.content||'').toLowerCase().includes(q) ||
@@ -3263,9 +3150,6 @@ html += '</div>';
 resultsEl.style.display='block';
 resultsEl.innerHTML=html;
 }
-
-
-// ========== KNOWLEDGE HUB — MANAGER ==========
 function renderKnowledgeHub() {
 const totalTrainings = state.trainings.length;
 const totalQuizzes = state.quizzes.length;
@@ -3294,19 +3178,15 @@ return `
 <div style="font-size:11px;opacity:0.7;margin-top:4px;">במערכת</div>
 </div>
 </div>
-
-<!-- Tabs -->
 <div style="display:flex;gap:4px;margin-bottom:16px;background:#f0f4f1;border-radius:10px;padding:4px;">
 <button id="hub-tab-trainings" onclick="switchHubTab('trainings')" style="flex:1;padding:9px;border-radius:7px;border:none;background:#1a6b3a;color:white;font-size:13px;font-weight:600;cursor:pointer;">📋 הדרכות</button>
 <button id="hub-tab-quizzes" onclick="switchHubTab('quizzes')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">🧠 מבחני ידע</button>
 <button id="hub-tab-updates" onclick="switchHubTab('updates')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">📰 עדכוני ידע</button>
 </div>
-
 <div id="hub-content">
 ${renderHubTrainings()}
 </div>`;
 }
-
 function switchHubTab(tab) {
 ['trainings','quizzes','updates'].forEach(t => {
 const btn = document.getElementById('hub-tab-'+t);
@@ -3318,8 +3198,6 @@ if (tab==='trainings') c.innerHTML = renderHubTrainings();
 else if (tab==='quizzes') c.innerHTML = renderHubQuizzes();
 else if (tab==='updates') c.innerHTML = renderHubUpdates();
 }
-
-// ===== TRAININGS =====
 function renderHubTrainings() {
 return `
 <div class="card">
@@ -3345,7 +3223,6 @@ ${t.materials&&t.materials.length?`<div style="margin-top:6px;display:flex;gap:6
 </div>`).join('')}
 </div>`;
 }
-
 function openAddTrainingModal() {
 openModal('הוסף הדרכה חדשה', `
 <div class="form-row">
@@ -3368,7 +3245,6 @@ openModal('הוסף הדרכה חדשה', `
 </div>
 `, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveTraining()">שמור הדרכה</button>`);
 }
-
 let pendingTrainingFiles = [];
 function handleTrainingFileSelect(input) {
 Array.from(input.files).forEach(f => attachTrainingFile(f));
@@ -3422,7 +3298,6 @@ else showToast('חומר לא זמין');
 function renderTrainingDetail(id) {
 const t = state.trainings.find(x=>x.id===id);
 if (!t) return '<p>לא נמצא</p>';
-// Mark as viewed
 const role = state.role==='advisor' ? state.currentAdvisor?.name : null;
 if (role && t.viewedBy && !t.viewedBy.includes(role)) {
 t.viewedBy.push(role);
@@ -3441,12 +3316,10 @@ ${t.materials&&t.materials.length?`
 <div style="font-size:13px;font-weight:700;color:#4a6650;margin-bottom:10px;">חומרי הדרכה:</div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;">${t.materials.map((m,i)=>`
 <button onclick="previewTrainingMaterial(${t.id},${i})" style="padding:8px 14px;background:#f0f7f2;border:1.5px solid #c8deca;border-radius:8px;font-size:12px;color:#1a6b3a;cursor:pointer;font-weight:600;">${getFileIcon(m.name)} ${m.name}</button>`).join('')}</div>
-</div>`:''} 
+</div>`:''}
 <div style="margin-top:14px;font-size:12px;color:#8aab92;border-top:1px solid #eef2ef;padding-top:10px;">נצפה על ידי: ${(t.viewedBy||[]).join(', ')||'עדיין לא נצפה'}</div>
 </div>`;
 }
-
-// ===== QUIZZES =====
 function renderHubQuizzes() {
 return `
 <div class="card">
@@ -3477,7 +3350,6 @@ ${(state.role==='advisor'&&myResult)?`<button class="btn-sm" onclick="renderView
 </div>`;}).join('')}
 </div>`;
 }
-
 function openAddQuizModal() {
 openModal('מבחן ידע חדש', `
 <div class="form-row">
@@ -3489,7 +3361,6 @@ openModal('מבחן ידע חדש', `
 <button onclick="addQuizQuestion()" style="width:100%;padding:9px;border:2px dashed #d0ddd3;border-radius:8px;background:transparent;color:#4a6650;cursor:pointer;font-size:13px;font-weight:500;margin-top:8px;">+ הוסף שאלה</button>
 `,`<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveQuiz()">שמור מבחן</button>`);
 }
-
 let quizQCounter = 0;
 function addQuizQuestion() {
 quizQCounter++;
@@ -3598,11 +3469,9 @@ score, answers,
 date: new Date().toLocaleDateString('he-IL'),
 time: new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')
 };
-// Remove old result and add new
 state.quizResults[quizId] = state.quizResults[quizId].filter(r=>r.advisorId!==resultEntry.advisorId);
 state.quizResults[quizId].push(resultEntry);
 saveQuizzesToFirebase();
-// Show result
 const content = document.getElementById('page-content');
 if (content) content.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
 <div style="font-size:48px;margin-bottom:16px;">${score===null?'📝':score>=80?'🌟':score>=60?'👍':'💪'}</div>
@@ -3635,8 +3504,6 @@ results.map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:10p
 </div>`).join('')}
 </div>`;
 }
-
-// ===== KNOWLEDGE UPDATES =====
 function renderHubUpdates() {
 const byTopic = {};
 state.topics.forEach(t => byTopic[t]=[]);
@@ -3666,12 +3533,10 @@ ${state.role==='manager'?`<button onclick="deleteKnowledgeUpdate(${u.id})" style
 ${state.knowledgeUpdates.length===0?'<div class="empty-state"><p>אין עדכוני ידע עדיין</p></div>':''}
 </div>`;
 }
-
 function topicTagColor(topic) {
 const map={'תואר ראשון':'#2980b9','תואר שני':'#1a6b3a','הסבה להוראה':'#e67e22','לימודי תעודה':'#8b2d6b','אחר':'#888'};
 return map[topic]||'#888';
 }
-
 function openAddKnowledgeUpdateModal() {
 openModal('עדכון ידע חדש', `
 <div class="form-group"><label class="form-label">כותרת העדכון</label><input class="form-input" id="ku-title" placeholder="למשל: שינויים בתנאי קבלה לתואר שני" /></div>
@@ -3700,14 +3565,11 @@ state.knowledgeUpdates = state.knowledgeUpdates.filter(u=>u.id!==id);
 if(window.db) window.fsDeleteDoc(window.fsDoc(window.db,'knowledgeUpdates',String(id)));
 showToast('עדכון נמחק'); switchHubTab('updates');
 }
-
-// ===== ADVISOR KNOWLEDGE HUB =====
 function renderAdvisorKnowledgeHub() {
 const myQuizResults = state.quizzes.map(q=>({quiz:q, result:(state.quizResults[q.id]||[]).find(r=>r.advisorId===state.currentAdvisor?.id)}));
 const done = myQuizResults.filter(x=>x.result).length;
 const pending = myQuizResults.filter(x=>!x.result).length;
 return `
-<!-- Stats -->
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;">
 <div style="background:linear-gradient(135deg,#1a6b3a,#2d9e5f);border-radius:14px;padding:16px;color:white;">
 <div style="font-size:10px;opacity:0.75;font-weight:600;text-transform:uppercase;margin-bottom:6px;">הדרכות זמינות</div>
@@ -3722,8 +3584,6 @@ return `
 <div style="font-size:26px;font-weight:800;">${pending}</div>
 </div>
 </div>
-
-<!-- Tabs -->
 <div style="display:flex;gap:4px;margin-bottom:16px;background:#f0f4f1;border-radius:10px;padding:4px;">
 <button id="ahub-tab-trainings" onclick="switchAdvisorHubTab('trainings')" style="flex:1;padding:9px;border-radius:7px;border:none;background:#1a6b3a;color:white;font-size:13px;font-weight:600;cursor:pointer;">📋 הדרכות</button>
 <button id="ahub-tab-quizzes" onclick="switchAdvisorHubTab('quizzes')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">🧠 מבחנים${pending>0?` <span style="background:#e74c3c;color:white;border-radius:10px;padding:1px 6px;font-size:10px;">${pending}</span>`:''}</button>
@@ -3777,8 +3637,6 @@ ${!result
 </div>`;}).join('')}
 </div>`;
 }
-
-// ========== BEAR MASCOT ==========
 const bearMsgs = [
 "שלום! אנחנו צמד המייעצים 🦉🐻",
 "יש לך שאלות פתוחות! 📬",
@@ -3803,7 +3661,6 @@ el.style.color = '#a8f0c0';
 setTimeout(() => { if(el) el.style.color = ''; }, 2500);
 }
 }
-// Legacy compat
 function bearSurprise() { mascotSurprise(); }
 function setBear() {}
 function drawBear() {}
