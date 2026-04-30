@@ -1228,6 +1228,7 @@ const openCount = state.questions.filter(q => q.status === 'open').length;
 items = [
 { id: 'dashboard', label: 'לוח בקרה', icon: dashIcon() },
 { id: 'inbox', label: 'שאלות יועצים', icon: inboxIcon(), badge: openCount || null },
+{ id: 'knowledge-hub', label: 'ניהול ידע', icon: hubIcon() },
 { id: 'announcements', label: 'עדכונים לכולם', icon: megaphoneIcon() },
 { id: 'direct-chat', label: 'הודעה ישירה', icon: chatIcon() },
 { id: 'knowledge', label: 'בסיס ידע', icon: docIcon() },
@@ -1241,6 +1242,7 @@ items = [
 { id: 'advisor-inbox', label: 'השאלות שלי', icon: inboxIcon(), badge: myOpen || null },
 { id: 'advisor-new', label: 'שאלה חדשה', icon: plusIcon() },
 { id: 'advisor-direct', label: 'הודעה ישירה', icon: chatIcon() },
+{ id: 'advisor-knowledge-hub', label: 'מרכז ידע', icon: hubIcon() },
 { id: 'advisor-announcements', label: 'עדכונים', icon: megaphoneIcon(), badge: null },
 { id: 'knowledge', label: 'בסיס ידע', icon: docIcon() },
 ];
