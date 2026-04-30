@@ -1002,22 +1002,26 @@ const avatarEl = document.getElementById('sidebar-avatar');
 if (role === 'manager') {
 if (nameEl) nameEl.textContent = 'מנהל';
 if (roleEl) roleEl.textContent = 'מנהל מערכת';
-if (avatarEl) avatarEl.textContent = 'מ';
+if (avatarEl) { avatarEl.textContent = 'מ'; avatarEl.style.background = 'var(--accent)'; }
 } else if (advisor) {
 if (nameEl) nameEl.textContent = advisor.name;
 if (roleEl) roleEl.textContent = 'יועץ לימודים';
-if (avatarEl) avatarEl.textContent = advisor.name[0];
+if (avatarEl) { avatarEl.textContent = advisor.name[0]; avatarEl.style.background = advisor.bg||'var(--accent)'; }
 }
+// Legacy elements — safe fallback
+try {
+const ua = document.getElementById('user-avatar');
+const un = document.getElementById('user-name-display');
+const ur = document.getElementById('user-role-display');
+const ss = document.getElementById('sidebar-subtitle');
 const name = role === 'manager' ? 'מנהל' : advisor.name;
-const initials = name.substring(0,1);
-document.getElementById('user-avatar').textContent = initials;
-document.getElementById('user-avatar').style.background = role === 'manager' ? 'var(--accent-light)' : advisor.bg;
-document.getElementById('user-avatar').style.color = role === 'manager' ? 'var(--accent)' : advisor.color;
-document.getElementById('user-name-display').textContent = name;
-document.getElementById('user-role-display').textContent = role === 'manager' ? 'מנהל מערכת' : 'יועץ לימודים';
-document.getElementById('sidebar-subtitle').textContent = state.settings.centerName;
+if (ua) { ua.textContent = name.substring(0,1); }
+if (un) un.textContent = name;
+if (ur) ur.textContent = role === 'manager' ? 'מנהל מערכת' : 'יועץ לימודים';
+if (ss) ss.textContent = state.settings.centerName;
+} catch(e) {}
 applyTheme(state.settings.theme);
-setTimeout(() => updateSidebarLogo(state.settings.theme.logoUrl||""), 50);
+setTimeout(() => { try { updateSidebarLogo(state.settings.theme.logoUrl||""); } catch(e){} }, 50);
 initNotifications();
 buildNav();
 if (role === 'manager') {
