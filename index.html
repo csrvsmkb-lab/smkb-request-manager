@@ -873,11 +873,18 @@ async function saveTrainingsToFirebase() {
 if (!window.db) return;
 try {
 for (const t of state.trainings) {
-const tClean = {...t};
-if (tClean.materials) tClean.materials = tClean.materials.map(m => ({...m, data: m.data ? '(local)' : null}));
+const tClean = JSON.parse(JSON.stringify(t));
+if (tClean.materials) {
+tClean.materials = tClean.materials.map(m => {
+if (m.data && m.data.length > 900000) {
+return {...m, data: null, tooLarge: true};
+}
+return m;
+});
+}
 await window.fsSetDoc(window.fsDoc(window.db, 'trainings', String(t.id)), tClean);
 }
-} catch(e) { console.warn(e); }
+} catch(e) { console.warn('training save error:', e); }
 }
 async function saveQuizzesToFirebase() {
 if (!window.db) return;
@@ -885,10 +892,16 @@ try {
 for (const q of state.quizzes) {
 await window.fsSetDoc(window.fsDoc(window.db, 'quizzes', String(q.id)), q);
 }
-for (const [qid, results] of Object.entries(state.quizResults)) {
-await window.fsSetDoc(window.fsDoc(window.db, 'quizResults', String(qid)), {results});
+} catch(e) { console.warn('quiz save error:', e); }
 }
-} catch(e) { console.warn(e); }
+
+async function saveQuizResultToFirebase(quizId) {
+if (!window.db) return;
+try {
+const results = state.quizResults[quizId] || [];
+await window.fsSetDoc(window.fsDoc(window.db, 'quizResults', String(quizId)), {results});
+console.log('Saved results for quiz', quizId, results.length, 'entries');
+} catch(e) { console.warn('quiz result save error:', e); }
 }
 async function saveKnowledgeUpdatesToFirebase() {
 if (!window.db) return;
@@ -989,6 +1002,23 @@ state.announcements = annSnap.docs.map(d => d.data());
 }
 const dcSnap = await window.fsGetDocs(window.fsCollection(window.db, 'directChats'));
 dcSnap.docs.forEach(d => { state.directChats[d.id] = d.data().messages || []; });
+// Load trainings
+const trainSnap = await window.fsGetDocs(window.fsCollection(window.db, 'trainings'));
+if (!trainSnap.empty) state.trainings = trainSnap.docs.map(d => d.data());
+// Load quizzes
+const quizSnap = await window.fsGetDocs(window.fsCollection(window.db, 'quizzes'));
+if (!quizSnap.empty) state.quizzes = quizSnap.docs.map(d => d.data());
+// Load quiz results - index by both string and number
+const qrSnap = await window.fsGetDocs(window.fsCollection(window.db, 'quizResults'));
+qrSnap.docs.forEach(d => {
+const results = d.data().results || [];
+state.quizResults[d.id] = results;
+state.quizResults[Number(d.id)] = results;
+});
+// Load knowledge updates
+const kuSnap = await window.fsGetDocs(window.fsCollection(window.db, 'knowledgeUpdates'));
+if (!kuSnap.empty) state.knowledgeUpdates = kuSnap.docs.map(d => d.data());
+console.log('Loaded: quizzes='+state.quizzes.length+' results='+Object.keys(state.quizResults).length);
 restoreFilesFromMessages();
 } catch(e) { console.warn("Firebase load error:", e); }
 }
@@ -3405,11 +3435,17 @@ if(window.db) window.fsDeleteDoc(window.fsDoc(window.db,'trainings',String(id)))
 showToast('הדרכה נמחקה'); switchHubTab('trainings');
 }
 function previewTrainingMaterial(trainingId, materialIdx) {
-const t = state.trainings.find(x=>x.id===trainingId);
-if (!t || !t.materials || !t.materials[materialIdx]) return;
+const t = state.trainings.find(x=>x.id===trainingId||x.id===Number(trainingId));
+if (!t || !t.materials || !t.materials[materialIdx]) { showToast('חומר לא נמצא'); return; }
 const m = t.materials[materialIdx];
-if (m.data) { fileStore[m.name]=m.data; previewFile(encodeURIComponent(m.name)); }
-else showToast('חומר לא זמין');
+if (m.data && m.data.length > 10) {
+fileStore[m.name] = m.data;
+previewFile(encodeURIComponent(m.name));
+} else if (m.tooLarge) {
+showToast('הקובץ גדול מדי לתצוגה — מקסימום 900KB');
+} else {
+showToast('קובץ לא זמין — הועלה לפני תמיכה בשמירה');
+}
 }
 function renderTrainingDetail(id) {
 const t = state.trainings.find(x=>x.id===id);
@@ -3454,7 +3490,7 @@ return `<div style="padding:14px 0;border-bottom:1px solid #eef2ef;display:flex;
 <div style="font-size:14px;font-weight:700;color:#1a2e1f;">${q.title}</div>
 <div style="font-size:12px;color:#8aab92;">${q.topic} · ${q.questions?q.questions.length:0} שאלות · נוצר ${q.created}</div>
 ${avgScore!==null?`<div style="font-size:11px;color:#1a6b3a;margin-top:2px;">ממוצע: ${avgScore}% · ${results.length} נבחנים</div>`:''}
-${myResult?`<div style="margin-top:4px;display:flex;align-items:center;gap:6px;"><span style="background:#e4f4ec;color:#1a6b3a;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">✓ ציון שלי: ${myResult.score}%</span>${(()=>{const allScores=(state.quizResults[q.id]||[]).filter(r=>r.score!=null).map(r=>r.score);const mx=allScores.length?Math.max(...allScores):null;return mx!==null&&myResult.score===mx?'<span style="font-size:16px;" title="מקום ראשון!">🏆</span>':'';})()} </div>`:''}
+${myResult?`<div style="margin-top:4px;display:flex;align-items:center;gap:6px;"><span style="background:#e4f4ec;color:#1a6b3a;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">✓ ציון שלי: ${myResult.score}%</span>${(()=>{const allScores=(state.quizResults[q.id]||state.quizResults[String(q.id)]||[]).filter(r=>r.score!=null).map(r=>r.score);const mx=allScores.length?Math.max(...allScores):null;return mx!==null&&myResult.score!==null&&Number(myResult.score)===Number(mx)?'<span style="font-size:16px;" title="מקום ראשון!">🏆</span>':'';})()} </div>`:''}
 </div>
 <div style="display:flex;gap:6px;flex-shrink:0;">
 ${state.role==='manager'?`
@@ -3588,11 +3624,11 @@ time: new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')
 };
 state.quizResults[quizId] = state.quizResults[quizId].filter(r=>r.advisorId!==resultEntry.advisorId);
 state.quizResults[quizId].push(resultEntry);
-saveQuizzesToFirebase();
+saveQuizResultToFirebase(quizId);
 const content = document.getElementById('page-content');
 if (content) content.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
 <div style="font-size:48px;margin-bottom:16px;">${score===null?'📝':score>=80?'🌟':score>=60?'👍':'💪'}</div>
-<h2 style="font-size:22px;font-weight:700;color:#1a2e1f;margin-bottom:8px;">${score!==null?'ציון: '+score+'%':'המבחן הוגש!'}</h2>
+<h2 style="font-size:22px;font-weight:700;color:#1a2e1f;margin-bottom:8px;">${score!==null?'ציון: '+score+'%':'המבחן הוגש!'} ${score===100?'🏆':''}</h2>
 <div style="font-size:14px;color:#4a6650;margin-bottom:20px;">${score!==null?(correct+' מתוך '+multiQ+' תשובות נכונות'):'שאלות הפתוחות יבדקו על ידי המנהל'}</div>
 ${score!==null&&score<100?`<div style="background:#f0f7f2;border-radius:12px;padding:16px;margin-bottom:20px;">
 ${quiz.questions.filter((_,qi)=>answers[qi]&&!answers[qi].correct&&answers[qi].type==='multi').map((q,i)=>`<div style="text-align:right;font-size:13px;color:#e74c3c;margin-bottom:4px;">✗ ${q.q} — תשובה נכונה: ${q.choices[q.correct]||''}</div>`).join('')}
@@ -3631,7 +3667,7 @@ ${r.score!=null && r.score===maxScore ? '<span style="font-size:20px;" title="מ
 </div>
 <div id="detail-${r.advisorId}" style="display:none;padding:12px 14px;">
 ${quiz.questions.map((q,qi)=>{
-const ans = r.answers ? r.answers[qi] : null;
+const ans = r.answers ? (Array.isArray(r.answers) ? r.answers[qi] : r.answers[qi]) : null;
 const isCorrect = ans && ans.type==='multi' ? ans.correct : null;
 const userAns = ans ? (ans.type==='open' ? ans.answer : (q.choices&&q.choices[ans.answer])||'לא ענה') : 'לא ענה';
 const correctAns = ans && ans.type==='multi' ? (q.choices&&q.choices[q.correct])||'' : null;
