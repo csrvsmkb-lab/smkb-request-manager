@@ -1059,6 +1059,37 @@ window.fsOnSnapshot(window.fsCollection(window.db, 'knowledge'), (snap) => {
 state.knowledge = snap.docs.map(d => d.data());
 if (state.currentView === 'knowledge') renderView('knowledge');
 });
+// Trainings realtime
+window.fsOnSnapshot(window.fsCollection(window.db, 'trainings'), (snap) => {
+state.trainings = snap.docs.map(d => d.data());
+if (state.currentView === 'knowledge-hub') renderView('knowledge-hub');
+if (state.currentView === 'advisor-knowledge-hub') renderView('advisor-knowledge-hub');
+if (state.role === 'advisor' && state.trainings.length > 0) {
+showPopup('הדרכה חדשה זמינה! 📋', state.trainings[state.trainings.length-1].title || '', 'new', () => renderView('advisor-knowledge-hub'));
+}
+});
+// Quizzes realtime
+window.fsOnSnapshot(window.fsCollection(window.db, 'quizzes'), (snap) => {
+const prev = state.quizzes ? state.quizzes.length : 0;
+state.quizzes = snap.docs.map(d => d.data());
+if (state.currentView === 'knowledge-hub') renderView('knowledge-hub');
+if (state.currentView === 'advisor-knowledge-hub') renderView('advisor-knowledge-hub');
+if (state.role === 'advisor' && state.quizzes.length > prev) {
+const newQ = state.quizzes[state.quizzes.length-1];
+showPopup('מבחן ידע חדש! 🧠', newQ.title || '', 'new', () => renderView('advisor-knowledge-hub'));
+}
+});
+// Quiz results realtime
+window.fsOnSnapshot(window.fsCollection(window.db, 'quizResults'), (snap) => {
+snap.docs.forEach(d => { state.quizResults[d.id] = d.data().results || []; });
+if (state.currentView === 'quiz-results') renderView('quiz-results', state.selectedThread);
+});
+// Knowledge updates realtime
+window.fsOnSnapshot(window.fsCollection(window.db, 'knowledgeUpdates'), (snap) => {
+state.knowledgeUpdates = snap.docs.map(d => d.data());
+if (state.currentView === 'knowledge-hub') renderView('knowledge-hub');
+if (state.currentView === 'advisor-knowledge-hub') renderView('advisor-knowledge-hub');
+});
 }
 loadFromStorage();
 try { const savedFs = localStorage.getItem(LS_KEY+"_fontsize"); if(savedFs) state.settings.theme.fontSize=savedFs; } catch(e){}
