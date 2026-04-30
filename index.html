@@ -898,10 +898,11 @@ await window.fsSetDoc(window.fsDoc(window.db, 'quizzes', String(q.id)), q);
 async function saveQuizResultToFirebase(quizId) {
 if (!window.db) return;
 try {
-const results = state.quizResults[quizId] || [];
-await window.fsSetDoc(window.fsDoc(window.db, 'quizResults', String(quizId)), {results});
-console.log('Saved results for quiz', quizId, results.length, 'entries');
-} catch(e) { console.warn('quiz result save error:', e); }
+const results = state.quizResults[String(quizId)] || state.quizResults[Number(quizId)] || [];
+const docId = String(quizId);
+await window.fsSetDoc(window.fsDoc(window.db, 'quizResults', docId), {results, quizId: docId, updatedAt: Date.now()});
+console.log('✅ Saved quiz results:', docId, results.length, 'entries');
+} catch(e) { console.error('❌ quiz result save error:', e); }
 }
 async function saveKnowledgeUpdatesToFirebase() {
 if (!window.db) return;
@@ -1008,17 +1009,18 @@ if (!trainSnap.empty) state.trainings = trainSnap.docs.map(d => d.data());
 // Load quizzes
 const quizSnap = await window.fsGetDocs(window.fsCollection(window.db, 'quizzes'));
 if (!quizSnap.empty) state.quizzes = quizSnap.docs.map(d => d.data());
-// Load quiz results - index by both string and number
+// Load quiz results
 const qrSnap = await window.fsGetDocs(window.fsCollection(window.db, 'quizResults'));
+state.quizResults = {};
 qrSnap.docs.forEach(d => {
 const results = d.data().results || [];
 state.quizResults[d.id] = results;
-state.quizResults[Number(d.id)] = results;
+console.log('📊 Loaded results for quiz', d.id, ':', results.length, 'entries');
 });
+console.log('✅ Total: quizzes='+state.quizzes.length+' result-sets='+Object.keys(state.quizResults).length);
 // Load knowledge updates
 const kuSnap = await window.fsGetDocs(window.fsCollection(window.db, 'knowledgeUpdates'));
 if (!kuSnap.empty) state.knowledgeUpdates = kuSnap.docs.map(d => d.data());
-console.log('Loaded: quizzes='+state.quizzes.length+' results='+Object.keys(state.quizResults).length);
 restoreFilesFromMessages();
 } catch(e) { console.warn("Firebase load error:", e); }
 }
@@ -1111,8 +1113,13 @@ showPopup('מבחן ידע חדש! 🧠', newQ.title || '', 'new', () => renderV
 });
 // Quiz results realtime
 window.fsOnSnapshot(window.fsCollection(window.db, 'quizResults'), (snap) => {
-snap.docs.forEach(d => { state.quizResults[d.id] = d.data().results || []; });
+snap.docs.forEach(d => {
+const results = d.data().results || [];
+state.quizResults[d.id] = results;
+});
+console.log('🔄 Real-time: quizResults updated');
 if (state.currentView === 'quiz-results') renderView('quiz-results', state.selectedThread);
+if (state.currentView === 'knowledge-hub') renderView('knowledge-hub');
 });
 // Knowledge updates realtime
 window.fsOnSnapshot(window.fsCollection(window.db, 'knowledgeUpdates'), (snap) => {
@@ -3508,7 +3515,7 @@ ${state.role==='manager'?'<button class="btn-sm btn-accent" onclick="openAddQuiz
 </div>
 ${state.quizzes.length===0?'<div class="empty-state"><p>אין מבחנים עדיין</p></div>':
 state.quizzes.sort((a,b)=>b.id-a.id).map(q=>{
-const results = state.quizResults[q.id] || [];
+const results = state.quizResults[String(q.id)] || state.quizResults[q.id] || [];
 const myResult = state.role==='advisor' ? results.find(r=>r.advisorId===state.currentAdvisor?.id) : null;
 const avgScore = results.length ? Math.round(results.reduce((s,r)=>s+(r.score||0),0)/results.length) : null;
 return `<div style="padding:14px 0;border-bottom:1px solid #eef2ef;display:flex;align-items:center;gap:12px;">
@@ -3641,7 +3648,8 @@ return { qi, answer: ans, correct: ans===q.correct, type:'multi' };
 });
 const multiQ = quiz.questions.filter(q=>q.type==='multi').length;
 const score = multiQ > 0 ? Math.round(correct/multiQ*100) : null;
-if (!state.quizResults[quizId]) state.quizResults[quizId] = [];
+const qidStr = String(quizId);
+if (!state.quizResults[qidStr]) state.quizResults[qidStr] = [];
 const resultEntry = {
 advisorId: state.currentAdvisor?.id || 'manager',
 advisorName: state.currentAdvisor?.name || 'מנהל',
@@ -3649,9 +3657,9 @@ score, answers,
 date: new Date().toLocaleDateString('he-IL'),
 time: new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')
 };
-state.quizResults[quizId] = state.quizResults[quizId].filter(r=>r.advisorId!==resultEntry.advisorId);
-state.quizResults[quizId].push(resultEntry);
-saveQuizResultToFirebase(quizId);
+state.quizResults[qidStr] = (state.quizResults[qidStr]||[]).filter(r=>r.advisorId!==resultEntry.advisorId);
+state.quizResults[qidStr].push(resultEntry);
+saveQuizResultToFirebase(qidStr);
 const content = document.getElementById('page-content');
 if (content) content.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
 <div style="font-size:48px;margin-bottom:16px;">${score===null?'📝':score>=80?'🌟':score>=60?'👍':'💪'}</div>
@@ -3668,7 +3676,7 @@ if (!state.quizzes) state.quizzes = [];
 if (!state.quizResults) state.quizResults = {};
 const quiz = state.quizzes.find(q=>q.id===id);
 if (!quiz) return '<p>לא נמצא</p>';
-const results = state.quizResults[id] || [];
+const results = state.quizResults[String(id)] || state.quizResults[id] || [];
 const avgScore = results.filter(r=>r.score!=null).length ? Math.round(results.filter(r=>r.score!=null).reduce((s,r)=>s+r.score,0)/results.filter(r=>r.score!=null).length) : null;
 const maxScore = results.length ? Math.max(...results.filter(r=>r.score!=null).map(r=>r.score)) : null;
 return `<div class="card">
