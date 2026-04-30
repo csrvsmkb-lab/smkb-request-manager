@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="version" content="1777549127">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -887,12 +888,13 @@ await window.fsSetDoc(window.fsDoc(window.db, 'trainings', String(t.id)), tClean
 } catch(e) { console.warn('training save error:', e); }
 }
 async function saveQuizzesToFirebase() {
-if (!window.db) return;
+if (!window.db) { console.warn('No DB!'); return; }
 try {
 for (const q of state.quizzes) {
 await window.fsSetDoc(window.fsDoc(window.db, 'quizzes', String(q.id)), q);
+console.log('✅ Saved quiz:', q.id, q.title);
 }
-} catch(e) { console.warn('quiz save error:', e); }
+} catch(e) { console.error('❌ quiz save error:', e); }
 }
 
 async function saveQuizResultToFirebase(quizId) {
@@ -1011,6 +1013,7 @@ const quizSnap = await window.fsGetDocs(window.fsCollection(window.db, 'quizzes'
 if (!quizSnap.empty) state.quizzes = quizSnap.docs.map(d => d.data());
 // Load quiz results
 const qrSnap = await window.fsGetDocs(window.fsCollection(window.db, 'quizResults'));
+if (!state.quizResults) state.quizResults = {};
 state.quizResults = {};
 qrSnap.docs.forEach(d => {
 const results = d.data().results || [];
@@ -1092,24 +1095,37 @@ state.knowledge = snap.docs.map(d => d.data());
 if (state.currentView === 'knowledge') renderView('knowledge');
 });
 // Trainings realtime
+let trainingsInitialLoad = true;
 window.fsOnSnapshot(window.fsCollection(window.db, 'trainings'), (snap) => {
-state.trainings = snap.docs.map(d => d.data());
+const newTrainings = snap.docs.map(d => d.data());
+const prevIds = new Set((state.trainings||[]).map(t=>String(t.id)));
+state.trainings = newTrainings;
 if (state.currentView === 'knowledge-hub') renderView('knowledge-hub');
 if (state.currentView === 'advisor-knowledge-hub') renderView('advisor-knowledge-hub');
-if (state.role === 'advisor' && state.trainings.length > 0) {
-showPopup('הדרכה חדשה זמינה! 📋', state.trainings[state.trainings.length-1].title || '', 'new', () => renderView('advisor-knowledge-hub'));
+if (!trainingsInitialLoad && state.role === 'advisor') {
+const brandNew = newTrainings.filter(t => !prevIds.has(String(t.id)));
+brandNew.forEach(t => {
+showPopup('הדרכה חדשה זמינה! 📋', t.title || '', 'new', () => renderView('advisor-knowledge-hub'));
+});
 }
+trainingsInitialLoad = false;
 });
 // Quizzes realtime
+let quizzesInitialLoad = true;
 window.fsOnSnapshot(window.fsCollection(window.db, 'quizzes'), (snap) => {
-const prev = state.quizzes ? state.quizzes.length : 0;
-state.quizzes = snap.docs.map(d => d.data());
+const newQuizzes = snap.docs.map(d => d.data());
+const prevIds = new Set((state.quizzes||[]).map(q=>String(q.id)));
+state.quizzes = newQuizzes;
 if (state.currentView === 'knowledge-hub') renderView('knowledge-hub');
 if (state.currentView === 'advisor-knowledge-hub') renderView('advisor-knowledge-hub');
-if (state.role === 'advisor' && state.quizzes.length > prev) {
-const newQ = state.quizzes[state.quizzes.length-1];
-showPopup('מבחן ידע חדש! 🧠', newQ.title || '', 'new', () => renderView('advisor-knowledge-hub'));
+// Only show popup for genuinely new quizzes (not on initial load)
+if (!quizzesInitialLoad && state.role === 'advisor') {
+const brandNew = newQuizzes.filter(q => !prevIds.has(String(q.id)));
+brandNew.forEach(q => {
+showPopup('מבחן ידע חדש! 🧠', q.title || '', 'new', () => renderView('advisor-knowledge-hub'));
+});
 }
+quizzesInitialLoad = false;
 });
 // Quiz results realtime
 window.fsOnSnapshot(window.fsCollection(window.db, 'quizResults'), (snap) => {
@@ -1333,21 +1349,23 @@ if (el) el.classList.add('active');
 }
 function renderView(viewId, extra) {
 state.currentView = viewId;
+state.currentExtra = extra;
 setActiveNav(viewId);
 const content = document.getElementById('page-content');
 const actions = document.getElementById('topbar-actions');
 const title = document.getElementById('page-title');
-actions.innerHTML = '';
+// Add refresh button to every page
+actions.innerHTML += `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
 if (viewId === 'dashboard') {
 title.textContent = 'לוח בקרה';
 content.innerHTML = renderDashboard();
 } else if (viewId === 'inbox') {
 title.textContent = 'שאלות יועצים';
-actions.innerHTML = `<button class="btn-sm" onclick="renderView('inbox-filter-open')">פתוחות בלבד</button>`;
+actions.innerHTML += `<button class="btn-sm" onclick="renderView('inbox-filter-open')">פתוחות בלבד</button>`;
 content.innerHTML = renderInbox(state.questions);
 } else if (viewId === 'inbox-filter-open') {
 title.textContent = 'שאלות פתוחות';
-actions.innerHTML = `<button class="btn-sm" onclick="renderView('inbox')">הכל</button>`;
+actions.innerHTML += `<button class="btn-sm" onclick="renderView('inbox')">הכל</button>`;
 content.innerHTML = renderInbox(state.questions.filter(q => q.status === 'open'));
 } else if (viewId === 'thread') {
 const q = state.questions.find(x => x.id === extra);
@@ -1380,7 +1398,7 @@ title.textContent = 'תוצאות מבחן';
 content.innerHTML = renderQuizResults(extra);
 } else if (viewId === 'announcements') {
 title.textContent = 'עדכונים לכולם';
-actions.innerHTML = `<button class="btn-sm btn-accent" onclick="openNewAnnouncementModal()">+ עדכון חדש</button>`;
+actions.innerHTML += `<button class="btn-sm btn-accent" onclick="openNewAnnouncementModal()">+ עדכון חדש</button>`;
 content.innerHTML = renderAnnouncements();
 } else if (viewId === 'advisor-announcements') {
 title.textContent = 'עדכונים ממנהל המרכז';
@@ -1396,11 +1414,11 @@ title.textContent = 'צאט עם המנהל';
 content.innerHTML = renderAdvisorDirectChat();
 } else if (viewId === 'knowledge') {
 title.textContent = 'בסיס ידע';
-if (state.role === 'manager') actions.innerHTML = `<button class="btn-sm btn-accent" onclick="openAddKbModal()">+ הוסף מאמר</button>`;
+if (state.role === 'manager') actions.innerHTML += `<button class="btn-sm btn-accent" onclick="openAddKbModal()">+ הוסף מאמר</button>`;
 content.innerHTML = renderKnowledge();
 } else if (viewId === 'reports') {
 title.textContent = 'דוחות';
-actions.innerHTML = `<button class="btn-sm" onclick="exportExcel()">ייצוא Excel</button><button class="btn-sm" onclick="printReport()">הדפסה / PDF</button>`;
+actions.innerHTML += `<button class="btn-sm" onclick="exportExcel()">ייצוא Excel</button><button class="btn-sm" onclick="printReport()">הדפסה / PDF</button>`;
 content.innerHTML = renderReports();
 } else if (viewId === 'settings') {
 title.textContent = 'הגדרות';
@@ -3361,7 +3379,7 @@ const c = document.getElementById('hub-content');
 if (!c) return;
 if (tab==='trainings') c.innerHTML = renderHubTrainings();
 else if (tab==='quizzes') c.innerHTML = renderHubQuizzes();
-else if (tab==='live') c.innerHTML = renderLiveQuizHub();
+else if (tab==='live') c.innerHTML = renderManagerLiveTab();
 else if (tab==='updates') c.innerHTML = renderHubUpdates();
 }
 function renderHubTrainings() {
@@ -3444,7 +3462,7 @@ if (preview) preview.innerHTML = pendingTrainingFiles.map((f,i)=>`<span style="p
 };
 reader.readAsDataURL(file);
 }
-function saveTraining() {
+async function saveTraining() {
 const title = document.getElementById('tr-title')?.value.trim();
 const date = document.getElementById('tr-date')?.value;
 const lecturer = document.getElementById('tr-lecturer')?.value.trim();
@@ -3453,14 +3471,17 @@ const summary = document.getElementById('tr-summary')?.value.trim();
 if (!title || !lecturer) { showToast('נא למלא כותרת ומרצה'); return; }
 const training = {
 id: Date.now(), title, date, lecturer, topic, summary,
-materials: pendingTrainingFiles.map(f=>({name:f.name,size:f.size,type:f.type,data:f.data})),
+materials: pendingTrainingFiles.map(f=>({name:f.name,size:f.size,type:f.type,data:f.data,storageUrl:f.storageUrl||null})),
 createdAt: new Date().toLocaleDateString('he-IL'),
 viewedBy: []
 };
 state.trainings.push(training);
 pendingTrainingFiles = [];
-saveTrainingsToFirebase();
-closeModal(); showToast('הדרכה נשמרה!'); switchHubTab('trainings');
+closeModal();
+showToast('שומר הדרכה...');
+await saveTrainingsToFirebase();
+showToast('✅ הדרכה נשמרה!');
+switchHubTab('trainings');
 }
 function deleteTraining(id) {
 if(!confirm('למחוק הדרכה זו?')) return;
@@ -3579,7 +3600,7 @@ const type = document.getElementById(id+'-type')?.value;
 const choices = document.getElementById(id+'-choices');
 if (choices) choices.style.display = type==='open'?'none':'block';
 }
-function saveQuiz() {
+async function saveQuiz() {
 const title = document.getElementById('qz-title')?.value.trim();
 const topic = document.getElementById('qz-topic')?.value;
 if (!title) { showToast('נא למלא שם מבחן'); return; }
@@ -3600,10 +3621,14 @@ questions.push({ q, type:'multi', choices, correct: correct ? parseInt(correct)-
 if (!questions.length) { showToast('נא להוסיף לפחות שאלה אחת'); return; }
 const quiz = { id: Date.now(), title, topic, questions, created: new Date().toLocaleDateString('he-IL') };
 state.quizzes.push(quiz);
-state.quizResults[quiz.id] = [];
-saveQuizzesToFirebase();
+state.quizResults[String(quiz.id)] = [];
+closeModal();
 quizQCounter = 0;
-closeModal(); showToast('מבחן נשמר!'); switchHubTab('quizzes');
+showToast('שומר מבחן...');
+await saveQuizzesToFirebase();
+await saveQuizResultToFirebase(String(quiz.id));
+showToast('✅ מבחן נשמר!');
+switchHubTab('quizzes');
 }
 function deleteQuiz(id) {
 if(!confirm('למחוק מבחן זה?')) return;
@@ -3862,7 +3887,7 @@ return `<div class="card">
 <div class="card-title" style="margin-bottom:14px;">מבחני ידע</div>
 ${state.quizzes.length===0?'<div class="empty-state"><p>אין מבחנים עדיין</p></div>':
 state.quizzes.sort((a,b)=>b.id-a.id).map(q=>{
-const result=(state.quizResults[q.id]||[]).find(r=>r.advisorId===state.currentAdvisor?.id);
+const result=(state.quizResults[String(q.id)]||state.quizResults[q.id]||[]).find(r=>r.advisorId===state.currentAdvisor?.id||r.advisorId===state.currentAdvisor?.name);
 return `<div style="padding:12px 0;border-bottom:1px solid #eef2ef;display:flex;align-items:center;gap:12px;">
 <div style="width:40px;height:40px;border-radius:10px;background:#e8f0ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🧠</div>
 <div style="flex:1;">
@@ -3878,61 +3903,23 @@ ${!result
 }
 
 // ========== LIVE QUIZ ==========
-function renderLiveQuizHub() {
-const live = state.liveQuizzes.current;
-const isActive = live && live.status === 'active';
-return `<div class="card">
-<div class="card-header">
-<span class="card-title">🎮 חידון LIVE — כמו Kahoot!</span>
-<button class="btn-sm btn-accent" onclick="openCreateLiveQuizModal()">+ צור חידון</button>
-</div>
-${isActive ? `
-<div style="background:linear-gradient(135deg,#e74c3c,#c0392b);border-radius:12px;padding:16px;color:white;margin-bottom:14px;">
-<div style="font-size:16px;font-weight:700;margin-bottom:6px;">🔴 חידון פעיל: ${live.title}</div>
-<div style="font-size:13px;opacity:0.85;margin-bottom:12px;">שאלה ${(live.currentQ||0)+1} מתוך ${live.questions?.length||0} · ${Object.keys(live.answers||{}).length} ענו</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;">
-<button onclick="showLiveResults()" style="padding:8px 16px;background:white;color:#e74c3c;border:none;border-radius:8px;font-weight:700;cursor:pointer;">📊 תוצאות</button>
-<button onclick="nextLiveQuestion()" style="padding:8px 16px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;font-weight:600;cursor:pointer;">שאלה הבאה ←</button>
-<button onclick="endLiveQuiz()" style="padding:8px 16px;background:rgba(0,0,0,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:8px;cursor:pointer;font-size:12px;">סיים חידון</button>
-</div>
-</div>
-${renderLiveQuizQuestion(live)}
-${renderLiveAnswersBoard(live)}` :
-`<div style="text-align:center;padding:30px 20px;color:#8aab92;">
-<div style="font-size:48px;margin-bottom:12px;">🎮</div>
-<div style="font-size:16px;font-weight:600;margin-bottom:6px;">אין חידון פעיל</div>
-<div style="font-size:13px;">צור חידון — כל היועצים יקבלו התראה ויצטרפו מהמחשב שלהם</div>
-</div>`}
-${(state.liveQuizzes.history||[]).length>0?`
-<div style="margin-top:14px;border-top:1px solid #eef2ef;padding-top:12px;">
-<div style="font-size:12px;font-weight:600;color:#8aab92;margin-bottom:8px;">היסטוריה</div>
-${(state.liveQuizzes.history||[]).slice(0,5).map(h=>`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid #f0f7f2;"><span>${h.title}</span><span style="color:#8aab92;">${h.date} · ${h.participants} משתתפים</span></div>`).join('')}
-</div>`:''}
-</div>`;
-}
 
-function renderLiveQuizQuestion(live) {
-if (!live?.questions) return '';
-async function submitLiveAnswer(answerIdx) {
-const live = state.liveQuizzes.current;
-if (!live||live.status!=='active') return;
-const myName = state.currentAdvisor?.name||'יועץ';
-const q = live.questions[live.currentQ||0];
-const isCorrect = answerIdx===q?.correct;
-if (!live.answers) live.answers={};
-live.answers[myName]={answer:answerIdx,correct:isCorrect,time:Date.now()};
-if (window.db) {
-try {
-await window.fsUpdateDoc(window.fsDoc(window.db,'liveQuiz','current'),{
-[`answers.${myName}`]:{answer:answerIdx,correct:isCorrect,time:Date.now()}
-});
-} catch(e) { console.warn(e); }
+function renderManagerLiveTab() {
+if (!state.quizzes || !state.quizzes.length) {
+return '<div class="card"><div class="empty-state"><p>אין מבחנים עדיין — צור מבחן קודם</p></div></div>';
 }
-const c = document.getElementById('ahub-content');
-if (c) c.innerHTML = renderAdvisorLiveQuiz();
-showToast(isCorrect?'✅ נכון! 🌟':'❌ לא נכון');
+return '<div class="card">' +
+'<div class="card-header"><span class="card-title">🎮 חידון LIVE — בחר מבחן להפעלה</span></div>' +
+'<div style="font-size:13px;color:#4a6650;margin-bottom:14px;">בחר מבחן קיים כדי להפעיל חידון LIVE שכל היועצים יצטרפו אליו</div>' +
+state.quizzes.map(q => '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #eef2ef;">' +
+'<div style="flex:1;">' +
+'<div style="font-size:14px;font-weight:600;">' + q.title + '</div>' +
+'<div style="font-size:12px;color:#8aab92;">' + (q.questions?q.questions.length:0) + ' שאלות · ' + (q.topic||'') + '</div>' +
+'</div>' +
+'<button onclick="launchLiveQuiz(' + q.id + ')" style="padding:9px 18px;background:linear-gradient(135deg,#8b2d6b,#c0397a);border:none;border-radius:8px;color:white;font-size:13px;font-weight:700;cursor:pointer;">🎮 הפעל LIVE</button>' +
+'</div>').join('') +
+'</div>';
 }
-
 
 // ========== LIVE QUIZ (KAHOOT-STYLE) ==========
 let liveQuizTimer = null;
@@ -3940,14 +3927,22 @@ let liveScores = {};
 let playerAnswered = false;
 
 async function launchLiveQuiz(quizId) {
-const quiz = state.quizzes.find(q=>q.id===quizId);
-if (!quiz) return;
+const quiz = state.quizzes.find(q=>q.id===quizId||q.id===Number(quizId));
+if (!quiz) { showToast('מבחן לא נמצא'); return; }
 liveScores = {};
-const sessionData = {quizId, quizTitle: quiz.title, status: 'waiting', currentQ: -1, questionStartTime: null, players: {}, answers: {}, created: Date.now()};
+const sessionData = {quizId: String(quizId), quizTitle: quiz.title, status: 'waiting', currentQ: -1, questionStartTime: null, players: {}, answers: {}, created: Date.now()};
 if (window.db) await window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','session'), sessionData);
 state.liveQuiz = sessionData;
 renderView('live-quiz-host', quizId);
 }
+window.launchLiveQuiz = launchLiveQuiz;
+window.startLiveQuestion = startLiveQuestion;
+window.showLiveAnswers = showLiveAnswers;
+window.showLiveFinalScores = showLiveFinalScores;
+window.endLiveQuiz = endLiveQuiz;
+window.submitLiveAnswer = submitLiveAnswer;
+window.saveQuiz = saveQuiz;
+window.saveTraining = saveTraining;
 
 function renderLiveQuizHost(quizId) {
 const quiz = state.quizzes.find(q=>q.id==quizId);
@@ -4179,10 +4174,26 @@ showToast('✓ תשובה נשמרה!');
 function getLiveQuizStatus() {
 if(!window.db) return;
 window.fsGetDoc(window.fsDoc(window.db,'liveQuiz','session')).then(doc=>{
-if(doc.exists()&&doc.data().status==='question') {
+if(doc.exists() && (doc.data().status==='question' || doc.data().status==='waiting')) {
 showPopup('חידון LIVE פעיל! 🎮','הצטרף עכשיו','announcement',()=>{renderView('live-quiz-play');startLiveQuizListener();});
 }
 }).catch(()=>{});
+// Also start a live listener to detect when quiz starts
+if (state.role === 'advisor') {
+window.fsOnSnapshot(window.fsDoc(window.db,'liveQuiz','session'), (doc) => {
+if (!doc.exists()) return;
+const s = doc.data();
+if (s.status === 'waiting' || s.status === 'question') {
+// Show join button if not already in live quiz
+if (state.currentView !== 'live-quiz-play') {
+showPopup('חידון LIVE פעיל! 🎮', s.quizTitle||'הצטרף עכשיו', 'announcement', ()=>{
+renderView('live-quiz-play');
+startLiveQuizListener();
+});
+}
+}
+});
+}
 }
 
 function exportTrainingsReport() {
@@ -4278,7 +4289,6 @@ function setBear() {}
 function drawBear() {}
 function initBear() {}
 setTimeout(() => {}, 100);
-}
 </script>
 </body>
 </html>
