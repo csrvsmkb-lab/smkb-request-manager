@@ -1134,6 +1134,7 @@ const pw = document.getElementById('login-password').value;
 document.getElementById('login-error').style.display = 'none';
 if (loginRole === 'manager') {
 if (pw === state.settings.managerPassword) {
+saveSession('manager', null);
 startApp('manager', null);
 } else {
 document.getElementById('login-error').style.display = 'block';
@@ -1143,6 +1144,7 @@ const sel = document.getElementById('advisor-select').value;
 if (!sel) { document.getElementById('login-error').textContent = 'נא לבחור יועץ'; document.getElementById('login-error').style.display = 'block'; return; }
 const adv = state.advisors.find(a => a.id === sel);
 if (pw === adv.password) {
+saveSession('advisor', adv);
 startApp('advisor', adv);
 } else {
 document.getElementById('login-error').textContent = 'סיסמה שגויה';
@@ -1151,6 +1153,7 @@ document.getElementById('login-error').style.display = 'block';
 }
 }
 function doLogout() {
+try { sessionStorage.removeItem('merkaz_session_v1'); } catch(e) {}
 document.getElementById('app').style.display = 'none';
 document.getElementById('login-screen').style.display = 'flex';
 document.getElementById('login-password').value = '';
@@ -1159,6 +1162,37 @@ loginRole = 'manager';
 document.querySelectorAll('.role-tab').forEach((t,i) => t.classList.toggle('active', i===0));
 document.getElementById('advisor-select-group').style.display = 'none';
 }
+
+// ========== SESSION PERSISTENCE ==========
+const SESSION_KEY = 'merkaz_session_v1';
+
+function saveSession(role, advisor) {
+try {
+sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+role, advisorId: advisor ? advisor.id : null, savedAt: Date.now()
+}));
+} catch(e) {}
+}
+
+function restoreSession() {
+try {
+const raw = sessionStorage.getItem(SESSION_KEY);
+if (!raw) return false;
+const s = JSON.parse(raw);
+if (Date.now() - s.savedAt > 8 * 60 * 60 * 1000) {
+sessionStorage.removeItem(SESSION_KEY); return false;
+}
+if (s.role === 'manager') {
+startApp('manager', null); return true;
+} else if (s.role === 'advisor' && s.advisorId) {
+const adv = state.advisors.find(a => a.id === s.advisorId);
+if (adv) { startApp('advisor', adv); return true; }
+}
+} catch(e) {}
+return false;
+}
+
+setTimeout(() => { restoreSession(); }, 250);
 function startApp(role, advisor) {
 state.role = role;
 state.currentAdvisor = advisor;
@@ -3181,6 +3215,7 @@ return `
 <div style="display:flex;gap:4px;margin-bottom:16px;background:#f0f4f1;border-radius:10px;padding:4px;">
 <button id="hub-tab-trainings" onclick="switchHubTab('trainings')" style="flex:1;padding:9px;border-radius:7px;border:none;background:#1a6b3a;color:white;font-size:13px;font-weight:600;cursor:pointer;">📋 הדרכות</button>
 <button id="hub-tab-quizzes" onclick="switchHubTab('quizzes')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">🧠 מבחני ידע</button>
+<button id="hub-tab-live" onclick="switchHubTab('live')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">🎮 חידון LIVE</button>
 <button id="hub-tab-updates" onclick="switchHubTab('updates')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">📰 עדכוני ידע</button>
 </div>
 <div id="hub-content">
@@ -3188,7 +3223,7 @@ ${renderHubTrainings()}
 </div>`;
 }
 function switchHubTab(tab) {
-['trainings','quizzes','updates'].forEach(t => {
+['trainings','quizzes','live','updates'].forEach(t => {
 const btn = document.getElementById('hub-tab-'+t);
 if (btn) { btn.style.background = t===tab?'#1a6b3a':'transparent'; btn.style.color = t===tab?'white':'#4a6650'; }
 });
@@ -3196,6 +3231,7 @@ const c = document.getElementById('hub-content');
 if (!c) return;
 if (tab==='trainings') c.innerHTML = renderHubTrainings();
 else if (tab==='quizzes') c.innerHTML = renderHubQuizzes();
+else if (tab==='live') c.innerHTML = renderLiveQuizHub();
 else if (tab==='updates') c.innerHTML = renderHubUpdates();
 }
 function renderHubTrainings() {
@@ -3343,6 +3379,7 @@ ${myResult?`<div style="margin-top:4px;"><span style="background:#e4f4ec;color:#
 <div style="display:flex;gap:6px;flex-shrink:0;">
 ${state.role==='manager'?`
 <button class="btn-icon" onclick="renderView('quiz-results',${q.id})">תוצאות</button>
+<button class="btn-icon" style="color:#8b2d6b;border-color:#8b2d6b;" onclick="launchLiveQuiz(${q.id})">🎮 LIVE</button>
 <button class="btn-icon" style="color:#e74c3c;border-color:#e74c3c;" onclick="deleteQuiz(${q.id})">מחק</button>`:''}
 ${(state.role==='advisor'&&!myResult)?`<button class="btn-sm btn-accent" onclick="renderView('quiz-detail',${q.id})">בצע מבחן</button>`:''}
 ${(state.role==='advisor'&&myResult)?`<button class="btn-sm" onclick="renderView('quiz-detail',${q.id})">נסה שוב</button>`:''}
@@ -3587,12 +3624,17 @@ return `
 <div style="display:flex;gap:4px;margin-bottom:16px;background:#f0f4f1;border-radius:10px;padding:4px;">
 <button id="ahub-tab-trainings" onclick="switchAdvisorHubTab('trainings')" style="flex:1;padding:9px;border-radius:7px;border:none;background:#1a6b3a;color:white;font-size:13px;font-weight:600;cursor:pointer;">📋 הדרכות</button>
 <button id="ahub-tab-quizzes" onclick="switchAdvisorHubTab('quizzes')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">🧠 מבחנים${pending>0?` <span style="background:#e74c3c;color:white;border-radius:10px;padding:1px 6px;font-size:10px;">${pending}</span>`:''}</button>
+<button id="ahub-tab-live" onclick="switchAdvisorHubTab('live')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">🎮 חידון LIVE</button>
 <button id="ahub-tab-updates" onclick="switchAdvisorHubTab('updates')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4a6650;font-size:13px;font-weight:600;cursor:pointer;">📰 עדכוני ידע</button>
 </div>
-<div id="ahub-content">${renderAdvisorTrainings()}</div>`;
+<div id="ahub-content">${renderAdvisorTrainings()}</div>
+<div id="live-join-banner" style="display:none;"></div>
+`;
+// Check for active live quiz
+setTimeout(getLiveQuizStatus, 1000);
 }
 function switchAdvisorHubTab(tab) {
-['trainings','quizzes','updates'].forEach(t=>{
+['trainings','quizzes','live','updates'].forEach(t=>{
 const btn=document.getElementById('ahub-tab-'+t);
 if(btn){btn.style.background=t===tab?'#1a6b3a':'transparent';btn.style.color=t===tab?'white':'#4a6650';}
 });
@@ -3600,6 +3642,7 @@ const c=document.getElementById('ahub-content');
 if(!c)return;
 if(tab==='trainings') c.innerHTML=renderAdvisorTrainings();
 else if(tab==='quizzes') c.innerHTML=renderAdvisorQuizzes();
+else if(tab==='live') c.innerHTML=renderAdvisorLiveQuiz();
 else if(tab==='updates') c.innerHTML=renderHubUpdates();
 }
 function renderAdvisorTrainings() {
@@ -3637,6 +3680,483 @@ ${!result
 </div>`;}).join('')}
 </div>`;
 }
+
+// ========== LIVE QUIZ ==========
+function renderLiveQuizHub() {
+const live = state.liveQuizzes.current;
+const isActive = live && live.status === 'active';
+return `<div class="card">
+<div class="card-header">
+<span class="card-title">🎮 חידון LIVE — כמו Kahoot!</span>
+<button class="btn-sm btn-accent" onclick="openCreateLiveQuizModal()">+ צור חידון</button>
+</div>
+${isActive ? `
+<div style="background:linear-gradient(135deg,#e74c3c,#c0392b);border-radius:12px;padding:16px;color:white;margin-bottom:14px;">
+<div style="font-size:16px;font-weight:700;margin-bottom:6px;">🔴 חידון פעיל: ${live.title}</div>
+<div style="font-size:13px;opacity:0.85;margin-bottom:12px;">שאלה ${(live.currentQ||0)+1} מתוך ${live.questions?.length||0} · ${Object.keys(live.answers||{}).length} ענו</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;">
+<button onclick="showLiveResults()" style="padding:8px 16px;background:white;color:#e74c3c;border:none;border-radius:8px;font-weight:700;cursor:pointer;">📊 תוצאות</button>
+<button onclick="nextLiveQuestion()" style="padding:8px 16px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:8px;font-weight:600;cursor:pointer;">שאלה הבאה ←</button>
+<button onclick="endLiveQuiz()" style="padding:8px 16px;background:rgba(0,0,0,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:8px;cursor:pointer;font-size:12px;">סיים חידון</button>
+</div>
+</div>
+${renderLiveQuizQuestion(live)}
+${renderLiveAnswersBoard(live)}` :
+`<div style="text-align:center;padding:30px 20px;color:#8aab92;">
+<div style="font-size:48px;margin-bottom:12px;">🎮</div>
+<div style="font-size:16px;font-weight:600;margin-bottom:6px;">אין חידון פעיל</div>
+<div style="font-size:13px;">צור חידון — כל היועצים יקבלו התראה ויצטרפו מהמחשב שלהם</div>
+</div>`}
+${(state.liveQuizzes.history||[]).length>0?`
+<div style="margin-top:14px;border-top:1px solid #eef2ef;padding-top:12px;">
+<div style="font-size:12px;font-weight:600;color:#8aab92;margin-bottom:8px;">היסטוריה</div>
+${(state.liveQuizzes.history||[]).slice(0,5).map(h=>`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid #f0f7f2;"><span>${h.title}</span><span style="color:#8aab92;">${h.date} · ${h.participants} משתתפים</span></div>`).join('')}
+</div>`:''}
+</div>`;
+}
+
+function renderLiveQuizQuestion(live) {
+if (!live?.questions) return '';
+const q = live.questions[live.currentQ||0];
+if (!q) return '';
+const colors = ['#e74c3c','#2980b9','#27ae60','#f39c12'];
+return `<div style="background:#1a2e1f;border-radius:14px;padding:20px;color:white;margin-top:10px;text-align:center;">
+<div style="font-size:11px;opacity:0.6;margin-bottom:8px;">שאלה ${(live.currentQ||0)+1}</div>
+<div style="font-size:20px;font-weight:700;margin-bottom:16px;">${q.q}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+${(q.choices||[]).map((c,i)=>`<div style="background:${colors[i]};border-radius:10px;padding:12px;font-size:14px;font-weight:600;">${['▲','◆','●','■'][i]} ${c}</div>`).join('')}
+</div>
+</div>`;
+}
+
+function renderLiveAnswersBoard(live) {
+if (!live?.answers) return '';
+const answers = live.answers;
+const counts = [0,0,0,0];
+Object.values(answers).forEach(a => { if(a.answer>=0&&a.answer<4) counts[a.answer]++; });
+const total = Object.keys(answers).length;
+const colors = ['#e74c3c','#2980b9','#27ae60','#f39c12'];
+return `<div class="card" style="margin-top:8px;">
+<div style="font-size:13px;font-weight:600;margin-bottom:10px;">📊 תשובות בזמן אמת — ${total} ענו</div>
+<div style="display:flex;gap:8px;align-items:flex-end;height:80px;margin-bottom:10px;">
+${counts.map((c,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+<div style="font-size:12px;font-weight:700;">${c}</div>
+<div style="width:100%;background:${colors[i]};border-radius:4px 4px 0 0;height:${total>0?Math.max(6,Math.round(c/total*60)):6}px;transition:height 0.5s;"></div>
+<div style="font-size:11px;">${['▲','◆','●','■'][i]}</div>
+</div>`).join('')}
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:5px;">
+${Object.entries(answers).map(([name,a])=>`<span style="padding:3px 9px;background:${colors[a.answer]||'#888'}22;border:1px solid ${colors[a.answer]||'#888'};border-radius:20px;font-size:11px;font-weight:600;color:${colors[a.answer]||'#888'};">${name}</span>`).join('')}
+</div>
+</div>`;
+}
+
+function openCreateLiveQuizModal() {
+lqCounter = 0;
+openModal('צור חידון LIVE', `
+<div class="form-group"><label class="form-label">שם החידון</label>
+<input class="form-input" id="lq-title" placeholder="למשל: חידון רישום סמסטר ב" /></div>
+<div id="lq-questions"></div>
+<button onclick="addLiveQuestion()" style="width:100%;padding:9px;border:2px dashed #d0ddd3;border-radius:8px;background:transparent;color:#4a6650;cursor:pointer;font-size:13px;margin-top:6px;">+ הוסף שאלה</button>
+`,`<button class="btn-sm" onclick="closeModal()">ביטול</button>
+<button class="btn-sm btn-accent" onclick="startLiveQuiz()">🚀 התחל!</button>`);
+setTimeout(addLiveQuestion, 50);
+}
+
+let lqCounter = 0;
+function addLiveQuestion() {
+lqCounter++;
+const id = 'lq'+lqCounter;
+const list = document.getElementById('lq-questions');
+if (!list) return;
+const colors = ['#e74c3c','#2980b9','#27ae60','#f39c12'];
+const div = document.createElement('div');
+div.id = id;
+div.style.cssText = 'margin-bottom:10px;padding:12px;background:#f7fdf9;border-radius:8px;border:1px solid #d0ddd3;';
+div.innerHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+<span style="font-size:12px;font-weight:600;color:#4a6650;">שאלה ${lqCounter}</span>
+<button onclick="document.getElementById('${id}').remove()" style="color:#e74c3c;border:none;background:none;cursor:pointer;font-size:12px;">✕</button>
+</div>
+<input class="form-input" id="${id}-q" placeholder="כתוב שאלה..." style="margin-bottom:8px;" />
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+${[0,1,2,3].map(i=>`<div style="display:flex;gap:5px;align-items:center;">
+<input type="radio" name="${id}-correct" value="${i}" style="cursor:pointer;flex-shrink:0;" />
+<input class="form-input" id="${id}-c${i}" placeholder="${['▲ אדום','◆ כחול','● ירוק','■ צהוב'][i]}" style="background:${colors[i]}18;border-color:${colors[i]};" /></div>`).join('')}
+</div>
+<div style="font-size:10px;color:#8aab92;margin-top:4px;">סמן ⭕ את התשובה הנכונה</div>`;
+list.appendChild(div);
+}
+
+async function startLiveQuiz() {
+const title = document.getElementById('lq-title')?.value.trim();
+if (!title) { showToast('נא למלא שם חידון'); return; }
+const questions = [];
+document.querySelectorAll('[id^="lq"]').forEach(div => {
+if (!div.id.match(/^lq\d+$/)) return;
+const id = div.id;
+const q = document.getElementById(id+'-q')?.value.trim();
+if (!q) return;
+const choices = [0,1,2,3].map(i=>document.getElementById(id+'-c'+i)?.value.trim()||`תשובה ${i+1}`);
+const correct = parseInt(document.querySelector(`input[name="${id}-correct"]:checked`)?.value||'0');
+questions.push({q,choices,correct});
+});
+if (!questions.length) { showToast('נא להוסיף שאלות'); return; }
+const liveData = {title,questions,currentQ:0,status:'active',answers:{},startedAt:new Date().toLocaleDateString('he-IL')};
+state.liveQuizzes.current = liveData;
+if (window.db) await window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','current'),liveData);
+lqCounter = 0;
+closeModal();
+showToast('🎮 החידון התחיל! כל היועצים קיבלו התראה');
+switchHubTab('live');
+}
+
+async function nextLiveQuestion() {
+const live = state.liveQuizzes.current;
+if (!live) return;
+const next = (live.currentQ||0)+1;
+if (next >= live.questions.length) { endLiveQuiz(); return; }
+live.currentQ = next;
+live.answers = {};
+if (window.db) await window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','current'),live);
+switchHubTab('live');
+}
+
+async function endLiveQuiz() {
+const live = state.liveQuizzes.current;
+if (!live) return;
+if (!state.liveQuizzes.history) state.liveQuizzes.history = [];
+state.liveQuizzes.history.unshift({title:live.title,date:live.startedAt,participants:Object.keys(live.answers||{}).length});
+if (window.db) await window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','current'),{status:'ended',title:live.title});
+state.liveQuizzes.current = null;
+showToast('החידון הסתיים!');
+switchHubTab('live');
+}
+
+function showLiveResults() {
+const live = state.liveQuizzes.current;
+if (!live) return;
+const q = live.questions[live.currentQ||0];
+const colors = ['#e74c3c','#2980b9','#27ae60','#f39c12'];
+const answers = live.answers||{};
+const counts = [0,0,0,0];
+Object.values(answers).forEach(a=>{if(a.answer>=0&&a.answer<4)counts[a.answer]++;});
+const total = Object.keys(answers).length;
+openModal(`תוצאות — שאלה ${(live.currentQ||0)+1}`,`
+<div style="font-size:15px;font-weight:700;margin-bottom:14px;">${q?.q||''}</div>
+${(q?.choices||[]).map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+<div style="width:100px;padding:6px;background:${colors[i]};color:white;border-radius:6px;font-weight:700;font-size:12px;text-align:center;">${['▲','◆','●','■'][i]} ${c}</div>
+<div style="flex:1;height:24px;background:#eee;border-radius:4px;overflow:hidden;"><div style="height:100%;background:${colors[i]};width:${total>0?Math.round(counts[i]/total*100):0}%;transition:width 0.6s;"></div></div>
+<span style="font-size:14px;font-weight:700;color:${i===q?.correct?'#1a6b3a':'#888'};min-width:30px;">${counts[i]}${i===q?.correct?' ✓':''}</span>
+</div>`).join('')}
+`,`<button class="btn-sm btn-accent" onclick="closeModal()">סגור</button>`);
+}
+
+function renderAdvisorLiveQuiz() {
+const live = state.liveQuizzes.current;
+if (!live || live.status!=='active') return `<div class="card" style="text-align:center;padding:40px 20px;color:#8aab92;">
+<div style="font-size:48px;margin-bottom:12px;">⏳</div>
+<div style="font-size:16px;font-weight:600;color:#1a2e1f;margin-bottom:6px;">אין חידון פעיל</div>
+<div style="font-size:13px;">כשמנהל יפתח חידון תקבל התראה אוטומטית 🔔</div>
+</div>`;
+const q = live.questions[live.currentQ||0];
+const myName = state.currentAdvisor?.name||'יועץ';
+const myAnswer = live.answers?.[myName];
+const colors = ['#e74c3c','#2980b9','#27ae60','#f39c12'];
+return `<div>
+<div style="background:linear-gradient(135deg,#e74c3c,#c0392b);border-radius:12px;padding:14px 18px;color:white;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+<div style="font-size:14px;font-weight:700;">🔴 ${live.title}</div>
+<div style="font-size:12px;opacity:0.8;">שאלה ${(live.currentQ||0)+1}/${live.questions.length}</div>
+</div>
+<div style="background:#1a2e1f;border-radius:14px;padding:20px;color:white;margin-bottom:16px;text-align:center;">
+<div style="font-size:11px;opacity:0.6;margin-bottom:8px;">שאלה ${(live.currentQ||0)+1}</div>
+<div style="font-size:20px;font-weight:700;line-height:1.4;">${q?.q||''}</div>
+</div>
+${myAnswer!==undefined?`<div style="text-align:center;padding:24px;background:#f0f7f2;border-radius:12px;">
+<div style="font-size:36px;margin-bottom:8px;">✅</div>
+<div style="font-size:15px;font-weight:600;color:#1a6b3a;">ענית! ממתין לשאלה הבאה...</div>
+<div style="font-size:13px;color:#8aab92;margin-top:4px;">תשובתך: ${['▲','◆','●','■'][myAnswer.answer]} ${q?.choices?.[myAnswer.answer]||''}</div>
+</div>`:`
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+${(q?.choices||[]).map((c,i)=>`<button onclick="submitLiveAnswer(${i})" style="padding:20px 12px;background:${colors[i]};color:white;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px ${colors[i]}55;transition:transform 0.1s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+<div style="font-size:28px;margin-bottom:6px;">${['▲','◆','●','■'][i]}</div>
+${c}</button>`).join('')}
+</div>`}
+<div style="margin-top:12px;font-size:12px;color:#8aab92;text-align:center;">${Object.keys(live.answers||{}).length} מתוך ${state.advisors.length} ענו</div>
+</div>`;
+}
+
+async function submitLiveAnswer(answerIdx) {
+const live = state.liveQuizzes.current;
+if (!live||live.status!=='active') return;
+const myName = state.currentAdvisor?.name||'יועץ';
+const q = live.questions[live.currentQ||0];
+const isCorrect = answerIdx===q?.correct;
+if (!live.answers) live.answers={};
+live.answers[myName]={answer:answerIdx,correct:isCorrect,time:Date.now()};
+if (window.db) {
+try {
+await window.fsUpdateDoc(window.fsDoc(window.db,'liveQuiz','current'),{
+[`answers.${myName}`]:{answer:answerIdx,correct:isCorrect,time:Date.now()}
+});
+} catch(e) { console.warn(e); }
+}
+const c = document.getElementById('ahub-content');
+if (c) c.innerHTML = renderAdvisorLiveQuiz();
+showToast(isCorrect?'✅ נכון! 🌟':'❌ לא נכון');
+}
+
+
+// ========== LIVE QUIZ (KAHOOT-STYLE) ==========
+let liveQuizTimer = null;
+let liveScores = {};
+let playerAnswered = false;
+
+async function launchLiveQuiz(quizId) {
+const quiz = state.quizzes.find(q=>q.id===quizId);
+if (!quiz) return;
+liveScores = {};
+const sessionData = {quizId, quizTitle: quiz.title, status: 'waiting', currentQ: -1, questionStartTime: null, players: {}, answers: {}, created: Date.now()};
+if (window.db) await window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','session'), sessionData);
+state.liveQuiz = sessionData;
+renderView('live-quiz-host', quizId);
+}
+
+function renderLiveQuizHost(quizId) {
+const quiz = state.quizzes.find(q=>q.id==quizId);
+if (!quiz) return '<p>לא נמצא</p>';
+return "<div style='min-height:80vh;background:linear-gradient(135deg,#0d1f35,#1a3a6b);border-radius:16px;padding:28px;color:white;'>" +
+"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;'>" +
+"<div><h1 style='font-size:22px;font-weight:800;'>" + quiz.title + "</h1>" +
+"<div style='font-size:13px;opacity:0.7;margin-top:4px;'>" + quiz.questions.length + " שאלות · חידון LIVE 🎮</div></div>" +
+"<div style='text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:14px 20px;'>" +
+"<div style='font-size:11px;opacity:0.7;margin-bottom:4px;'>כניסה: מרכז ידע ← LIVE</div>" +
+"<div style='font-size:28px;font-weight:900;letter-spacing:4px;color:#a8f0c0;'>SMKB</div></div></div>" +
+"<div id='live-players-box' style='background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:18px;min-height:60px;'>" +
+"<div style='font-size:13px;opacity:0.7;margin-bottom:8px;'>משתתפים: <span id='player-count'>0</span></div>" +
+"<div id='players-grid' style='display:flex;flex-wrap:wrap;gap:6px;'></div></div>" +
+"<div style='display:flex;gap:10px;justify-content:center;margin-bottom:18px;'>" +
+"<button onclick='startLiveQuestion(" + quizId + ",0)' style='padding:14px 32px;background:linear-gradient(135deg,#1a6b3a,#2d9e5f);border:none;border-radius:12px;color:white;font-size:16px;font-weight:800;cursor:pointer;'>▶ התחל!</button>" +
+"<button onclick='endLiveQuiz()' style='padding:14px 16px;background:rgba(231,76,60,0.3);border:1.5px solid rgba(231,76,60,0.5);border-radius:12px;color:white;font-size:13px;cursor:pointer;'>⏹ סיום</button></div>" +
+"<div id='live-question-display'></div>" +
+"<div id='live-scoreboard' style='display:none;background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-top:14px;'>" +
+"<div style='font-size:15px;font-weight:700;text-align:center;margin-bottom:10px;'>🏆 לוח תוצאות</div>" +
+"<div id='scoreboard-list'></div></div></div>";
+}
+
+async function startLiveQuestion(quizId, qIdx) {
+const quiz = state.quizzes.find(q=>q.id==quizId);
+if (!quiz || qIdx >= quiz.questions.length) { showLiveFinalScores(quizId); return; }
+const q = quiz.questions[qIdx];
+const timeLimit = 20;
+if (window.db) {
+await window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','session'),{
+quizId, quizTitle: quiz.title, status:'question', currentQ:qIdx,
+questionText:q.q, choices:q.choices||[], correctAnswer:q.correct,
+timeLimit, questionStartTime:Date.now(), answers:{}
+});
+}
+showQuestionOnHost(q, qIdx, quiz.questions.length, timeLimit, quizId);
+}
+
+function showQuestionOnHost(q, qIdx, total, timeLimit, quizId) {
+const display = document.getElementById('live-question-display');
+if (!display) return;
+const colors = ['#e74c3c','#3498db','#2ecc71','#f39c12'];
+const shapes = ['▲','◆','●','■'];
+let html = "<div style='background:rgba(255,255,255,0.1);border-radius:14px;padding:18px;'>";
+html += "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;'>";
+html += "<div style='font-size:13px;opacity:0.7;'>שאלה " + (qIdx+1) + "/" + total + "</div>";
+html += "<div id='live-timer' style='font-size:28px;font-weight:900;color:#f39c12;'>" + timeLimit + "</div>";
+html += "<div id='live-ans-count' style='font-size:13px;opacity:0.7;'>0 ענו</div></div>";
+html += "<div style='font-size:18px;font-weight:700;text-align:center;margin-bottom:16px;'>" + q.q + "</div>";
+html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;'>";
+(q.choices||[]).forEach((c,i) => {
+html += "<div style='background:" + colors[i] + ";border-radius:8px;padding:10px;display:flex;align-items:center;gap:6px;'>";
+html += "<span style='font-size:16px;'>" + shapes[i] + "</span><span style='font-size:12px;font-weight:600;'>" + c + "</span></div>";
+});
+html += "</div><div style='display:flex;gap:8px;justify-content:center;'>";
+html += "<button onclick='showLiveAnswers(" + quizId + "," + qIdx + ")' style='padding:8px 18px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:8px;color:white;cursor:pointer;font-size:12px;'>📊 תשובות</button>";
+if (qIdx+1 < total) {
+html += "<button onclick='startLiveQuestion(" + quizId + "," + (qIdx+1) + ")' style='padding:8px 18px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-size:12px;font-weight:700;'>הבא →</button>";
+} else {
+html += "<button onclick='showLiveFinalScores(" + quizId + ")' style='padding:8px 18px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-size:12px;font-weight:700;'>🏆 תוצאות</button>";
+}
+html += "</div></div>";
+display.innerHTML = html;
+let t = timeLimit;
+if (liveQuizTimer) clearInterval(liveQuizTimer);
+liveQuizTimer = setInterval(async () => {
+t--;
+const el = document.getElementById('live-timer');
+if (el) { el.textContent=t; el.style.color=t<=5?'#e74c3c':'#f39c12'; }
+if (window.db) {
+try {
+const doc = await window.fsGetDoc(window.fsDoc(window.db,'liveQuiz','session'));
+if (doc.exists()) { const el2=document.getElementById('live-ans-count'); if(el2) el2.textContent=Object.keys(doc.data().answers||{}).length+' ענו'; }
+} catch(e) {}
+}
+if (t<=0) { clearInterval(liveQuizTimer); showLiveAnswers(quizId,qIdx); }
+}, 1000);
+}
+
+async function showLiveAnswers(quizId, qIdx) {
+if (liveQuizTimer) clearInterval(liveQuizTimer);
+const quiz = state.quizzes.find(q=>q.id==quizId);
+if (!quiz) return;
+const q = quiz.questions[qIdx];
+let answers = {};
+if (window.db) {
+try { const doc=await window.fsGetDoc(window.fsDoc(window.db,'liveQuiz','session')); if(doc.exists()) answers=doc.data().answers||{}; } catch(e) {}
+}
+const counts=[0,0,0,0];
+Object.values(answers).forEach(a=>{if(a.answer>=0&&a.answer<4)counts[a.answer]++;});
+const total=Object.values(answers).length||1;
+Object.entries(answers).forEach(([id,a])=>{
+if(!liveScores[id]) liveScores[id]={name:a.name||id,score:0};
+if(a.answer===q.correct) liveScores[id].score+=Math.max(100,Math.round(1000*(1-(a.time||10)/20)));
+});
+const colors=['#e74c3c','#3498db','#2ecc71','#f39c12'];
+const display=document.getElementById('live-question-display');
+if(display){
+let html="<div style='background:rgba(255,255,255,0.1);border-radius:12px;padding:14px;'>";
+html+="<div style='font-size:14px;font-weight:700;text-align:center;margin-bottom:10px;'>📊 " + q.q + "</div>";
+html+="<div style='display:grid;grid-template-columns:repeat(" + (q.choices||[]).length + ",1fr);gap:6px;'>";
+(q.choices||[]).forEach((c,i)=>{
+html+="<div style='text-align:center;'>";
+html+="<div style='background:" + colors[i] + ";border-radius:5px;padding:4px;font-size:10px;margin-bottom:3px;" + (i===q.correct?"border:2px solid #fff;":"") + "'>" + c + (i===q.correct?" ✓":"") + "</div>";
+html+="<div style='height:" + Math.max(6,Math.round(counts[i]/total*90)) + "px;background:" + colors[i] + ";border-radius:3px;'></div>";
+html+="<div style='font-size:13px;font-weight:700;margin-top:2px;'>" + counts[i] + "</div></div>";
+});
+html+="</div></div>";
+display.innerHTML=html;
+}
+updateLiveScoreboard();
+}
+
+function updateLiveScoreboard() {
+const sb=document.getElementById('live-scoreboard');
+const list=document.getElementById('scoreboard-list');
+if(!sb||!list) return;
+sb.style.display='block';
+const sorted=Object.values(liveScores).sort((a,b)=>b.score-a.score);
+const medals=['🥇','🥈','🥉'];
+list.innerHTML=sorted.slice(0,8).map((p,i)=>{
+return "<div style='display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.1);'>" +
+"<div style='font-size:14px;min-width:22px;'>" + (medals[i]||i+1) + "</div>" +
+"<div style='flex:1;font-size:13px;font-weight:" + (i<3?700:500) + ";'>" + p.name + "</div>" +
+"<div style='font-size:14px;font-weight:700;color:#a8f0c0;'>" + p.score.toLocaleString() + "</div></div>";
+}).join('');
+}
+
+function showLiveFinalScores(quizId) {
+if(liveQuizTimer) clearInterval(liveQuizTimer);
+if(window.db) window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','session'),{status:'finished',quizId});
+const sorted=Object.values(liveScores).sort((a,b)=>b.score-a.score);
+const medals=['🥇','🥈','🥉'];
+const display=document.getElementById('live-question-display');
+if(display){
+let html="<div style='background:linear-gradient(135deg,rgba(26,107,58,0.4),rgba(26,107,58,0.2));border-radius:14px;padding:24px;text-align:center;'>";
+html+="<div style='font-size:36px;margin-bottom:10px;'>🏆</div>";
+html+="<div style='font-size:20px;font-weight:800;margin-bottom:16px;'>החידון הסתיים!</div>";
+html+="<div style='max-width:360px;margin:0 auto;display:flex;flex-direction:column;gap:6px;'>";
+sorted.slice(0,5).forEach((p,i)=>{
+html+="<div style='display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.1);border-radius:8px;padding:10px 14px;'>";
+html+="<span style='font-size:20px;'>" + (medals[i]||i+1+'.') + "</span>";
+html+="<span style='flex:1;font-size:14px;font-weight:700;text-align:right;'>" + p.name + "</span>";
+html+="<span style='font-size:15px;font-weight:800;color:#a8f0c0;'>" + p.score.toLocaleString() + "</span></div>";
+});
+html+="</div><button onclick=\"renderView('knowledge-hub')\" style='margin-top:16px;padding:10px 24px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;font-weight:700;'>← חזרה</button></div>";
+display.innerHTML=html;
+}
+}
+
+async function endLiveQuiz() {
+if(liveQuizTimer) clearInterval(liveQuizTimer);
+if(window.db) await window.fsSetDoc(window.fsDoc(window.db,'liveQuiz','session'),{status:'finished'});
+liveScores={};
+renderView('knowledge-hub');
+}
+
+function renderLiveQuizPlay() {
+return "<div id='live-play-container' style='min-height:80vh;display:flex;align-items:center;justify-content:center;'>" +
+"<div style='text-align:center;padding:32px;'>" +
+"<div style='font-size:48px;margin-bottom:12px;'>🎮</div>" +
+"<div style='font-size:20px;font-weight:700;color:#1a2e1f;margin-bottom:6px;'>חידון LIVE</div>" +
+"<div style='font-size:13px;color:#8aab92;margin-bottom:16px;'>ממתין לשאלה...</div>" +
+"<div style='background:#f0f7f2;border-radius:10px;padding:12px 20px;display:inline-block;font-size:13px;color:#1a6b3a;font-weight:600;'>" +
+(state.currentAdvisor ? state.currentAdvisor.name : 'שחקן') + " מחובר ✓</div></div></div>";
+}
+
+function startLiveQuizListener() {
+if(!window.db||state.role!=='advisor') return;
+window.fsOnSnapshot(window.fsDoc(window.db,'liveQuiz','session'),(doc)=>{
+if(!doc.exists()||state.currentView!=='live-quiz-play') return;
+const s=doc.data();
+const container=document.getElementById('live-play-container');
+if(!container) return;
+if(s.status==='question') showQuestionToPlayer(s);
+else if(s.status==='finished') {
+container.innerHTML="<div style='text-align:center;padding:60px;'><div style='font-size:48px;margin-bottom:12px;'>🏆</div>" +
+"<div style='font-size:20px;font-weight:700;color:#1a2e1f;'>החידון הסתיים!</div>" +
+"<button onclick=\"renderView('advisor-knowledge-hub')\" style='margin-top:16px;padding:10px 24px;background:#1a6b3a;border:none;border-radius:8px;color:white;cursor:pointer;'>חזרה</button></div>";
+}
+});
+if(state.currentAdvisor&&window.db) {
+window.fsGetDoc(window.fsDoc(window.db,'liveQuiz','session')).then(doc=>{
+if(doc.exists()){ const p=doc.data().players||{}; p[state.currentAdvisor.id]={name:state.currentAdvisor.name,joinedAt:Date.now()}; window.fsUpdateDoc(window.fsDoc(window.db,'liveQuiz','session'),{players:p}); }
+});
+}
+}
+
+function showQuestionToPlayer(session) {
+playerAnswered=false;
+const container=document.getElementById('live-play-container');
+if(!container) return;
+const colors=['#e74c3c','#3498db','#2ecc71','#f39c12'];
+const shapes=['▲','◆','●','■'];
+const t=Math.max(0,session.timeLimit-Math.floor((Date.now()-session.questionStartTime)/1000));
+let html="<div style='background:linear-gradient(135deg,#0d1f35,#1a3a6b);border-radius:16px;padding:20px;color:white;min-height:70vh;display:flex;flex-direction:column;max-width:480px;margin:0 auto;'>";
+html+="<div style='display:flex;justify-content:space-between;margin-bottom:10px;'>";
+html+="<div style='font-size:12px;opacity:0.7;'>שאלה " + ((session.currentQ||0)+1) + "</div>";
+html+="<div id='player-timer' style='font-size:22px;font-weight:900;color:#f39c12;'>" + t + "</div></div>";
+html+="<div style='font-size:17px;font-weight:700;text-align:center;flex:1;display:flex;align-items:center;justify-content:center;margin:14px 0;'>" + (session.questionText||'') + "</div>";
+html+="<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;' id='choices-grid'>";
+(session.choices||[]).forEach((c,i)=>{
+html+="<button onclick='submitLiveAnswer(" + i + "," + (session.currentQ||0) + ")' style='background:" + colors[i] + ";border:none;border-radius:10px;padding:14px;color:white;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;justify-content:center;'>";
+html+="<span style='font-size:16px;'>" + shapes[i] + "</span>" + c + "</button>";
+});
+html+="</div></div>";
+container.innerHTML=html;
+let t2=t;
+const pt=setInterval(()=>{ t2--; const el=document.getElementById('player-timer'); if(el){el.textContent=t2;el.style.color=t2<=5?'#e74c3c':'#f39c12';} if(t2<=0) clearInterval(pt); },1000);
+}
+
+async function submitLiveAnswer(answerIdx, qIdx) {
+if(playerAnswered) return;
+playerAnswered=true;
+document.querySelectorAll('#choices-grid button').forEach((btn,i)=>{btn.style.opacity=i===answerIdx?'1':'0.3';btn.disabled=true;});
+if(window.db&&state.currentAdvisor) {
+try {
+const doc=await window.fsGetDoc(window.fsDoc(window.db,'liveQuiz','session'));
+if(doc.exists()){
+const a=doc.data().answers||{};
+a[state.currentAdvisor.id]={answer:answerIdx,name:state.currentAdvisor.name,time:(Date.now()-doc.data().questionStartTime)/1000};
+await window.fsUpdateDoc(window.fsDoc(window.db,'liveQuiz','session'),{answers:a});
+}
+} catch(e) {}
+}
+showToast('✓ תשובה נשמרה!');
+}
+
+function getLiveQuizStatus() {
+if(!window.db) return;
+window.fsGetDoc(window.fsDoc(window.db,'liveQuiz','session')).then(doc=>{
+if(doc.exists()&&doc.data().status==='question') {
+showPopup('חידון LIVE פעיל! 🎮','הצטרף עכשיו','announcement',()=>{renderView('live-quiz-play');startLiveQuizListener();});
+}
+}).catch(()=>{});
+}
+
 const bearMsgs = [
 "שלום! אנחנו צמד המייעצים 🦉🐻",
 "יש לך שאלות פתוחות! 📬",
