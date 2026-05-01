@@ -1355,7 +1355,7 @@ const content = document.getElementById('page-content');
 const actions = document.getElementById('topbar-actions');
 const title = document.getElementById('page-title');
 // Add refresh button to every page
-actions.innerHTML = `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן דף" style="padding:5px 12px;border-radius:8px;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:13px;color:#1a6b3a;font-weight:600;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻ רענן</button>`;
+actions.innerHTML = `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
 if (viewId === 'dashboard') {
 title.textContent = 'לוח בקרה';
 content.innerHTML = renderDashboard();
