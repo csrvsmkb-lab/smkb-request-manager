@@ -522,96 +522,73 @@ transition:opacity 0.3s, transform 0.3s;
 .notif-msg { font-size:12px; color:#4a6650; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .notif-time { font-size:10px; color:#8aab92; margin-top:4px; }
 .notif-close { font-size:14px; color:#aaa; flex-shrink:0; background:none; border:none; cursor:pointer; padding:0; line-height:1; }
-
-/* NEW LOGIN CARD */
-#login-screen {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f7f5;
-  padding: 20px;
-}
-.login-card {
-  background: white;
-  border-radius: 20px;
-  padding: 36px 44px;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.08);
-  border: 1px solid #eef2ef;
-}
-.login-logo-wrap {
-  text-align: center;
-  margin-bottom: 24px;
-}
-.login-role-tabs {
-  display: flex;
-  background: #f0f7f2;
-  border-radius: 10px;
-  padding: 3px;
-  margin-bottom: 18px;
-}
-.login-role-tabs .role-tab {
-  flex: 1;
-  padding: 9px;
-  border-radius: 7px;
-  border: none;
-  background: transparent;
-  color: #4a6650;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-}
-.login-role-tabs .role-tab.active {
-  background: #1a6b3a;
-  color: white;
-}
-.login-btn {
-  width: 100%;
-  padding: 12px;
-  background: #1a6b3a;
-  border: none;
-  border-radius: 10px;
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  margin-top: 4px;
-}
-.login-btn:hover { background: #15582f; }
-.login-error { display: none; color: #e74c3c; font-size: 12px; text-align: center; margin-bottom: 12px; background: #fde8e8; padding: 8px; border-radius: 8px; }
-
 </style>
 </head>
 <body>
 <div id="login-screen">
-<div class="login-card">
-<div class="login-logo-wrap">
-<img src="data:image/png;base64,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" alt="סמינר הקיבוצים" style="height:60px;width:auto;border-radius:8px;" />
-<div style="width:40px;height:2px;background:#1a6b3a;border-radius:2px;margin:12px auto;"></div>
-<h2 style="font-size:18px;font-weight:700;color:#1a2e1f;margin:0 0 4px;">מרכז ייעוץ לימודים</h2>
-<p style="font-size:12px;color:#8aab92;margin:0;">ברוך הבא, התחבר להמשך</p>
+<div class="login-left">
+<div class="login-left-logo">
+<div class="smkb-logo-wrap">
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+<circle cx="16" cy="16" r="14" fill="none" stroke="white" stroke-width="1.5"/>
+<path d="M10 22 L16 8 L22 22" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M12 18 L20 18" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+<circle cx="16" cy="8" r="2" fill="#a8f0c0"/>
+</svg>
 </div>
-<div class="login-role-tabs">
-<button class="role-tab active" onclick="setRole('manager')">מנהל</button>
-<button class="role-tab" onclick="setRole('advisor')">יועץ</button>
+<div>
+<div style="font-size:15px;font-weight:700;letter-spacing:0.01em;">סמינר הקיבוצים</div>
+<div style="font-size:11px;opacity:0.65;margin-top:1px;">המכללה לחינוך, לטכנולוגיה ולאמנויות</div>
+</div>
+</div>
+<div class="login-left-title">
+<h1>מרכז ייעוץ<br/><span>לימודים</span></h1>
+<p>מערכת ניהול ידע, שאלות יועצים<br/>ומעקב נושאים בזמן אמת</p>
+</div>
+<div class="login-features">
+<div class="login-feature"><div class="login-feature-dot"></div>מענה מהיר לשאלות יועצי לימודים</div>
+<div class="login-feature"><div class="login-feature-dot"></div>מדידת תחומי עניין ופילוח נושאים</div>
+<div class="login-feature"><div class="login-feature-dot"></div>בסיס ידע מרכזי עם חיפוש מתקדם</div>
+<div class="login-feature"><div class="login-feature-dot"></div>דוחות וייצוא לאקסל</div>
+</div>
+<div style="font-size:11px;opacity:0.45;">© 2026 כל הזכויות שמורות — יחיאל לוי</div>
+</div>
+<div class="login-right">
+<div class="login-right-header">
+<h2>כניסה למערכת</h2>
+<p>הזן את פרטי הכניסה שלך כדי להמשיך</p>
+</div>
+<div class="role-tabs">
+<button class="role-tab active" onclick="setRole('manager')">מנהל מערכת</button>
+<button class="role-tab" onclick="setRole('advisor')">יועץ לימודים</button>
 </div>
 <div class="form-group" id="advisor-select-group" style="display:none;">
-<label class="form-label">בחר יועץ</label>
-<select id="advisor-select" class="form-input"><option value="">-- בחר יועץ --</option></select>
+<label class="form-label">יועץ</label>
+<select class="form-input" id="advisor-select">
+<option value="">-- בחר יועץ --</option>
+<option value="dvir">דביר</option>
+<option value="maor">מאור</option>
+<option value="shir">שיר</option>
+<option value="shira">שירה</option>
+<option value="yuval">יובל</option>
+<option value="orly">אורלי</option>
+</select>
 </div>
 <div class="form-group">
 <label class="form-label">סיסמה</label>
-<input type="password" id="login-password" class="form-input" placeholder="הזן סיסמה" onkeydown="if(event.key==='Enter')doLogin()" />
+<div style="position:relative;">
+<input type="password" class="form-input" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" style="padding-left:42px;letter-spacing:0.1em;" />
+<button type="button" onclick="togglePw('login-password','eye-login')" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:0;color:#aaa;">
+<svg id="eye-login" width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.4"/></svg>
+</button>
 </div>
+</div>
+<button class="btn-primary" onclick="doLogin()" style="margin-top:4px;">כניסה למערכת ←</button>
 <p class="login-error" id="login-error">סיסמה שגויה, נסה שוב</p>
-<button onclick="doLogin()" class="login-btn">כניסה למערכת</button>
-<p style="text-align:center;margin-top:16px;font-size:11px;color:#b0c4b8;">© 2026 סמינר הקיבוצים</p>
+<div class="login-copyright">© 2026 כל הזכויות שמורות — יחיאל לוי</div>
 </div>
-
+</div>
+<div class="notif-container" id="notif-container"></div>
 <div id="app">
 <div class="sidebar">
 <div class="sidebar-header" style="display:flex;align-items:center;gap:10px;">
