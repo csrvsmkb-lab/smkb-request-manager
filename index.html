@@ -522,6 +522,17 @@ transition:opacity 0.3s, transform 0.3s;
 .notif-msg { font-size:12px; color:#4a6650; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .notif-time { font-size:10px; color:#8aab92; margin-top:4px; }
 .notif-close { font-size:14px; color:#aaa; flex-shrink:0; background:none; border:none; cursor:pointer; padding:0; line-height:1; }
+
+body.dark-mode{background:#0d1f14!important;color:#e8f5ec!important}
+body.dark-mode .card{background:#1a2e1f!important;border-color:#2d4a35!important}
+body.dark-mode .metric{background:#1a2e1f!important;border-color:#2d4a35!important}
+body.dark-mode .topbar{background:#0d1f14!important;border-color:#2d4a35!important}
+body.dark-mode .page-content{background:#0d1f14!important}
+body.dark-mode .form-input,body.dark-mode .form-textarea,body.dark-mode .search-input,body.dark-mode .search-filter{background:#0d1f14!important;border-color:#2d4a35!important;color:#e8f5ec!important}
+body.dark-mode .btn-sm:not(.btn-accent){background:#1a2e1f!important;border-color:#2d4a35!important;color:#a8d4b4!important}
+body.dark-mode .modal{background:#1a2e1f!important}
+body.dark-mode .inbox-item:hover{background:#0d3d20!important}
+body.dark-mode .thread-msg.from-advisor{background:#0d3d20!important;border-color:#2d4a35!important}
 </style>
 </head>
 <body>
@@ -688,7 +699,7 @@ transition:opacity 0.3s, transform 0.3s;
 <div class="main-area">
 <div class="topbar">
 <h2 id="page-title">לוח בקרה</h2>
-<div class="topbar-actions" id="topbar-actions"></div>
+<div class="topbar-actions" id="topbar-actions"></div><button id="dark-mode-btn" onclick="toggleDarkMode()" style="width:32px;height:32px;border-radius:50%;border:1px solid #d0ddd3;background:transparent;cursor:pointer;font-size:16px;" title="מצב לילה">🌙</button>
 <div id="firebase-status" style="font-size:10px;color:#8aab92;display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;background:#f0f7f2;"><span id="fb-dot" style="width:6px;height:6px;border-radius:50%;background:#ccc;display:inline-block;"></span><span id="fb-label">מתחבר...</span></div>
 </div>
 <div class="page-content" id="page-content">
@@ -1150,7 +1161,7 @@ applyTheme(state.settings.theme);
 function initFirebase() {
 loadFromFirebase().then(() => {
 applyTheme(state.settings.theme);
-startRealtimeListeners();
+startRealtimeListeners(); setTimeout(loadUserPrefs,200);
 if (state.role) buildNav();
 if (state.role === 'advisor' && state.currentAdvisor) {
 setTimeout(() => {
@@ -1355,7 +1366,7 @@ const content = document.getElementById('page-content');
 const actions = document.getElementById('topbar-actions');
 const title = document.getElementById('page-title');
 // Add refresh button to every page
-actions.innerHTML = `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
+actions.innerHTML += `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
 if (viewId === 'dashboard') {
 title.textContent = 'לוח בקרה';
 content.innerHTML = renderDashboard();
@@ -3275,59 +3286,65 @@ saveToStorage();
 showToast('גודל טקסט: ' + newSize + 'px');
 }
 function globalSearch() {
-const q = document.getElementById('global-search')?.value?.trim().toLowerCase();
+const q = (document.getElementById('global-search')?.value||'').trim().toLowerCase();
 const resultsEl = document.getElementById('global-results');
 if (!resultsEl) return;
 if (!q || q.length < 2) { resultsEl.style.display='none'; return; }
-const qResults = state.questions.filter(item =>
-item.subject.toLowerCase().includes(q) ||
-item.advisorName.toLowerCase().includes(q) ||
-item.studentName.toLowerCase().includes(q) ||
-item.topic.toLowerCase().includes(q) ||
-(item.subtopic||'').toLowerCase().includes(q) ||
-item.messages.some(m=>(m.text||'').toLowerCase().includes(q))
-).slice(0,5);
-const kResults = state.knowledge.filter(k =>
-k.title.toLowerCase().includes(q) ||
-(k.content||'').toLowerCase().includes(q) ||
-k.topic.toLowerCase().includes(q) ||
-(k.subtopic||'').toLowerCase().includes(q) ||
-(k.fileName||'').toLowerCase().includes(q)
-).slice(0,4);
-if (!qResults.length && !kResults.length) {
+const qs = state.questions||[];
+const ks = state.knowledge||[];
+const us = state.knowledgeUpdates||[];
+const ts = state.trainings||[];
+const qR = qs.filter(function(x){try{return(x.subject||'').toLowerCase().includes(q)||(x.advisorName||'').toLowerCase().includes(q)||(x.studentName||'').toLowerCase().includes(q)||(x.topic||'').toLowerCase().includes(q);}catch(e){return false;}}).slice(0,5);
+const kR = ks.filter(function(k){try{return(k.title||'').toLowerCase().includes(q)||(k.content||'').toLowerCase().includes(q)||(k.topic||'').toLowerCase().includes(q);}catch(e){return false;}}).slice(0,3);
+const uR = us.filter(function(u){return(u.title||'').toLowerCase().includes(q)||(u.content||'').toLowerCase().includes(q)||(u.topic||'').toLowerCase().includes(q);}).slice(0,3);
+const tR = ts.filter(function(t){return(t.title||'').toLowerCase().includes(q)||(t.lecturer||'').toLowerCase().includes(q)||(t.summary||'').toLowerCase().includes(q);}).slice(0,3);
+if (!qR.length && !kR.length && !uR.length && !tR.length) {
 resultsEl.style.display='block';
-resultsEl.innerHTML='<div class="card" style="padding:12px 16px;"><div class="empty-state" style="padding:16px 0;"><p>לא נמצאו תוצאות עבור "' + q + '"</p></div></div>';
+resultsEl.innerHTML='<div class="card" style="padding:12px 16px;"><p style="color:#8aab92;font-size:13px;text-align:center;">לא נמצאו תוצאות עבור "'+q+'"</p></div>';
 return;
 }
 let html = '<div class="card" style="padding:14px 18px;">';
-html += '<div style="font-size:12px;font-weight:700;color:#8aab92;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">תוצאות חיפוש עבור "' + q + '"</div>';
-if (qResults.length) {
-html += '<div style="font-size:12px;font-weight:600;color:#4a6650;margin-bottom:6px;">📬 שאלות (' + qResults.length + ')</div>';
-html += qResults.map(item=>`
-<div onclick="${state.role==='manager'?'openThread('+item.id+')':'openAdvisorThread('+item.id+')'}" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='transparent'">
-<div style="width:36px;height:36px;border-radius:10px;background:#e4f4ec;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1a6b3a;flex-shrink:0;">${item.advisorName[0]}</div>
-<div style="flex:1;min-width:0;">
-<div style="font-size:13px;font-weight:600;color:#1a2e1f;">${item.subject}</div>
-<div style="font-size:11px;color:#8aab92;">${item.advisorName} · ${item.studentName} · <span class="tag ${topicTagClass(item.topic)}" style="font-size:9px;">${item.topic}</span></div>
-</div>
-<span class="tag ${item.status==='open'?'tag-red':'tag-green'}" style="font-size:10px;">${item.status==='open'?'פתוח':'סגור'}</span>
-</div>`).join('');
-}
-if (kResults.length) {
-html += '<div style="font-size:12px;font-weight:600;color:#4a6650;margin:12px 0 6px;">📚 בסיס ידע (' + kResults.length + ')</div>';
-html += kResults.map(k=>`
-<div onclick="renderView('kb-detail',${k.id})" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='transparent'">
-<div style="font-size:20px;">${k.fileData?getFileIcon(k.fileName||''):'📝'}</div>
-<div style="flex:1;min-width:0;">
-<div style="font-size:13px;font-weight:600;color:#1a2e1f;">${k.title}</div>
-<div style="font-size:11px;color:#8aab92;"><span class="tag ${topicTagClass(k.topic)}" style="font-size:9px;">${k.topic}</span>${k.subtopic?' · '+k.subtopic:''}</div>
-</div>
-</div>`).join('');
-}
-html += '</div>';
+html += '<div style="font-size:12px;font-weight:700;color:#8aab92;margin-bottom:10px;">תוצאות חיפוש: "'+q+'"</div>';
+function row(icon,title,sub,click){return '<div onclick="'+click+'" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer;" onmouseover="this.style.background=\'#f0f7f2\'" onmouseout="this.style.background=\'transparent\'"><div style="font-size:18px;">'+icon+'</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#1a2e1f;">'+title+'</div><div style="font-size:11px;color:#8aab92;">'+sub+'</div></div></div>';}
+if(qR.length){html+='<div style="font-size:12px;font-weight:600;color:#4a6650;margin-bottom:6px;">📬 שאלות ('+qR.length+')</div>';qR.forEach(function(x){html+=row('📬',x.subject,x.advisorName+' · '+x.studentName,state.role==='manager'?'openThread('+x.id+')':'openAdvisorThread('+x.id+')');})}
+if(kR.length){html+='<div style="font-size:12px;font-weight:600;color:#4a6650;margin:10px 0 6px;">📚 בסיס ידע ('+kR.length+')</div>';kR.forEach(function(k){html+=row('📚',k.title,k.topic||'','renderView(\'kb-detail\','+k.id+')');})}
+if(tR.length){html+='<div style="font-size:12px;font-weight:600;color:#4a6650;margin:10px 0 6px;">📋 הדרכות ('+tR.length+')</div>';tR.forEach(function(t){html+=row('📋',t.title,(t.date||'')+' · '+(t.lecturer||''),'renderView(\'knowledge-hub\')');})}
+if(uR.length){html+='<div style="font-size:12px;font-weight:600;color:#4a6650;margin:10px 0 6px;">📰 עדכוני ידע ('+uR.length+')</div>';uR.forEach(function(u){html+=row('📰',u.title,(u.topic||'')+' · '+(u.date||''),'renderView(\'knowledge-hub\')');})}
+html+='</div>';
 resultsEl.style.display='block';
 resultsEl.innerHTML=html;
 }
+
+function toggleDarkMode(){
+var d=document.body.classList.toggle('dark-mode');
+localStorage.setItem('smkb_dark',d?'1':'0');
+var btn=document.getElementById('dark-mode-btn');
+if(btn)btn.textContent=d?'☀️':'🌙';
+showToast(d?'מצב לילה 🌙':'מצב יום ☀️');
+}
+function setFont(f){
+var urls={'Heebo':'https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&display=swap','Assistant':'https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&display=swap','Rubik':'https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;700;800&display=swap','Secular One':'https://fonts.googleapis.com/css2?family=Secular+One&display=swap','Frank Ruhl Libre':'https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700;900&display=swap','Noto Sans Hebrew':'https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;600;700;800&display=swap'};
+if(urls[f]){var l=document.getElementById('font-link');if(!l){l=document.createElement('link');l.rel='stylesheet';l.id='font-link';document.head.appendChild(l);}l.href=urls[f];}
+document.body.style.fontFamily=f+',sans-serif';
+localStorage.setItem('smkb_font',f);
+showToast('גופן: '+f);
+}
+function loadUserPrefs(){
+if(localStorage.getItem('smkb_dark')==='1'){document.body.classList.add('dark-mode');var b=document.getElementById('dark-mode-btn');if(b)b.textContent='☀️';}
+var f=localStorage.getItem('smkb_font');if(f)setFont(f);
+}
+function renderFontSelector(){
+var fonts=['Heebo','Assistant','Rubik','Secular One','Frank Ruhl Libre','Noto Sans Hebrew'];
+var cur=localStorage.getItem('smkb_font')||'Heebo';
+var html='<div class="card"><div class="card-title" style="margin-bottom:12px;">🔤 בחר גופן</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+fonts.forEach(function(f){
+var a=f===cur;
+html+='<button onclick="setFont(' + "'" + f + "'" + ')" style="padding:10px 6px;border:2px solid '+(a?'var(--accent)':'#d0ddd3')+';border-radius:10px;background:'+(a?'var(--accent-light)':'transparent')+';cursor:pointer;font-size:12px;font-weight:600;color:'+(a?'var(--accent)':'#4a6650')+';font-family:'+f+',sans-serif;">'+f+'</button>';
+});
+html+='</div></div>';
+return html;
+}
+function _old_globalSearch_disabled() {}
 function renderKnowledgeHub() {
 if (!state.trainings) state.trainings = [];
 if (!state.quizzes) state.quizzes = [];
