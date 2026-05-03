@@ -159,7 +159,7 @@ input, textarea, select { font-family: inherit; direction: rtl; }
 
 #login-screen {
 
-display: flex; min-height: 100vh; direction: rtl; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
+display: none; min-height: 100vh; direction: rtl; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
 
 background: radial-gradient(ellipse at 30% 50%, #0a4f28 0%, #0d3d20 40%, #071f10 100%);
 
@@ -2486,7 +2486,11 @@ return false;
 
 }
 
-setTimeout(() => { restoreSession(); }, 250);
+setTimeout(() => { 
+  if (!restoreSession()) {
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+}, 250);
 
 function startApp(role, advisor) {
 
