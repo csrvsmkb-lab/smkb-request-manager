@@ -295,7 +295,7 @@ box-shadow: 0 4px 14px rgba(26,107,58,0.35);
 
 }
 
-#app { display: none; flex-direction: row; height: 100vh; overflow: hidden; }
+#app { display: none; flex-direction: row; height: 100vh; width: 100vw; overflow: hidden; }
 
 .sidebar {
 
@@ -413,7 +413,7 @@ font-size: 12px; cursor: pointer; transition: all 0.15s;
 
 .logout-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
 
-.main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f0f4f1; }
+.main-area { flex: 1; min-width: 0; width: 0; display: flex; flex-direction: column; overflow: hidden; background: #f0f4f1; }
 
 .topbar {
 
@@ -2679,6 +2679,14 @@ state.currentAdvisor = advisor;
 document.getElementById('login-screen').style.display = 'none';
 
 document.getElementById('app').style.display = 'flex';
+
+// Ensure app stays visible
+setTimeout(function() {
+  var app = document.getElementById('app');
+  if (app && app.style.display !== 'flex') {
+    app.style.display = 'flex';
+  }
+}, 100);
 
 const name = role === 'manager' ? 'מנהל' : advisor.name;
 
