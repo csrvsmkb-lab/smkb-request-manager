@@ -2392,7 +2392,7 @@ const fb = {
   advisorId: state.currentAdvisor?.id || 'manager',
   createdAt: now
 };
-await window.fsSetDoc(window.db, 'ann_feedback', String(now), fb);
+await window.fsSetDoc(window.fsDoc(window.db, 'ann_feedback', String(now)), fb);
 showToast('המשוב נשלח בהצלחה! 🙏');
 closeModal();
 }
