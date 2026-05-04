@@ -299,7 +299,7 @@ box-shadow: 0 4px 14px rgba(26,107,58,0.35);
 
 .sidebar {
 
-width: 240px; direction: rtl;
+width: 240px; direction: rtl; overflow: visible;
 
 background: linear-gradient(180deg, #1a3a2a 0%, #1e4d35 35%, #16603c 70%, #0f4d2e 100%);
 
@@ -347,7 +347,7 @@ background: rgba(255,255,255,0.15); color: #fff;
 
 #user-role-display { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 2px; }
 
-.sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
 
 .nav-item {
 
@@ -2533,6 +2533,8 @@ setTimeout(() => updateSidebarLogo(state.settings.theme.logoUrl||""), 50);
 initNotifications();
 
 buildNav();
+
+document.querySelector('.sidebar').scrollTop = 0;
 
 if (role === 'manager') {
 
