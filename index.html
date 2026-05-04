@@ -533,6 +533,10 @@ body.dark-mode .btn-sm:not(.btn-accent){background:#1a2e1f!important;border-colo
 body.dark-mode .modal{background:#1a2e1f!important}
 body.dark-mode .inbox-item:hover{background:#0d3d20!important}
 body.dark-mode .thread-msg.from-advisor{background:#0d3d20!important;border-color:#2d4a35!important}
+
+body.dark-mode { --text: #f0f0f0 !important; --text2: #cccccc !important; --text3: #aaaaaa !important; --bg: #1a1a2e !important; --surface: #16213e !important; --surface2: #0f3460 !important; }
+body.dark-mode .card, body.dark-mode .metric, body.dark-mode .inbox-item, body.dark-mode .report-table td, body.dark-mode .report-table th { color: #f0f0f0 !important; }
+body.dark-mode input, body.dark-mode textarea, body.dark-mode select { color: #f0f0f0 !important; background: #2a2a4a !important; }
 </style>
 </head>
 <body>
@@ -1366,7 +1370,7 @@ const content = document.getElementById('page-content');
 const actions = document.getElementById('topbar-actions');
 const title = document.getElementById('page-title');
 // Add refresh button to every page
-actions.innerHTML += `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
+actions.innerHTML += `<button onclick="(function(b){b.style.transition='transform 0.5s';b.style.transform='rotate(360deg)';setTimeout(function(){b.style.transform='';b.style.transition='';renderView(state.currentView,state.currentExtra)},500)})(this)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
 if (viewId === 'dashboard') {
 title.textContent = 'לוח בקרה';
 content.innerHTML = renderDashboard();
@@ -2876,7 +2880,7 @@ return `
 </div>
 </div>
 <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
-<button class="btn-sm btn-accent" onclick="saveGeneralSettings()">שמור הגדרות</button>
+<button class="btn-sm btn-accent" onclick="saveGeneralSettings()">💾 שמור הגדרות</button>
 <button class="btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="if(confirm('למחוק את כל הנתונים השמורים ולאפס למצב ברירת מחדל?')){localStorage.removeItem('merkaz_yiuts_v1');location.reload();}">אפס נתונים</button>
 </div>
 </div>
@@ -2945,7 +2949,7 @@ ${['Heebo','Assistant','Rubik','Frank Ruhl Libre','Secular One'].map(f=>`<option
 </div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
 <button class="btn-sm" onclick="resetTheme()">איפוס ברירת מחדל</button>
-<button class="btn-sm btn-accent" onclick="saveAppearance()">שמור מראה</button>
+<button class="btn-sm btn-accent" onclick="saveAppearance()">💾 שמור מראה</button>
 </div>
 </div>
 <div class="card settings-section">
@@ -2978,7 +2982,7 @@ ${state.topics.map(t => `
 </div>
 `).join('')}
 <div style="text-align:left;">
-<button class="btn-sm btn-accent" onclick="saveTopicTree()">שמור נושאים</button>
+<button class="btn-sm btn-accent" onclick="saveTopicTree()">💾 שמור נושאים</button>
 </div>
 </div>`;
 }
@@ -3444,7 +3448,7 @@ openModal('הוסף הדרכה חדשה', `
 </div>
 <div id="tr-files-preview" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"></div>
 </div>
-`, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveTraining()">שמור הדרכה</button>`);
+`, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveTraining()">💾 שמור הדרכה</button>`);
 }
 let pendingTrainingFiles = [];
 function handleTrainingFileSelect(input) {
@@ -3584,7 +3588,7 @@ openModal('מבחן ידע חדש', `
 </div>
 <div id="qz-questions-list" style="margin-top:4px;"></div>
 <button onclick="addQuizQuestion()" style="width:100%;padding:9px;border:2px dashed #d0ddd3;border-radius:8px;background:transparent;color:#4a6650;cursor:pointer;font-size:13px;font-weight:500;margin-top:8px;">+ הוסף שאלה</button>
-`,`<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveQuiz()">שמור מבחן</button>`);
+`,`<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveQuiz()">💾 שמור מבחן</button>`);
 }
 let quizQCounter = 0;
 function addQuizQuestion() {
