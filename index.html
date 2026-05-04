@@ -545,12 +545,44 @@ body.dark-mode input, body.dark-mode textarea, body.dark-mode select { backgroun
 body.dark-mode .sidebar { background: linear-gradient(180deg, #0d1f14 0%, #0f2a1c 100%) !important; }
 
 
-body.dark-mode { color-scheme: dark; }
-body.dark-mode .card, body.dark-mode .metric, body.dark-mode .page-content, body.dark-mode .topbar { background-color: #2a2a3e !important; color: #e8e8e8 !important; }
-body.dark-mode p, body.dark-mode span, body.dark-mode div, body.dark-mode td, body.dark-mode th, body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode label { color: #e8e8e8 !important; }
-body.dark-mode input, body.dark-mode textarea, body.dark-mode select { background-color: #3a3a5e !important; color: #e8e8e8 !important; border-color: #555 !important; }
-body.dark-mode .inbox-item { background: #2a2a3e !important; border-color: #444 !important; }
-body.dark-mode .report-table td, body.dark-mode .report-table th { background: #2a2a3e !important; color: #e8e8e8 !important; }
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+#news-ticker {
+  width: 100%;
+  background: linear-gradient(90deg, #1a6b3a, #2d9e5f);
+  color: white;
+  padding: 7px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  z-index: 50;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  display: none;
+}
+#news-ticker .ticker-inner {
+  display: inline-block;
+  animation: ticker-scroll 30s linear infinite;
+  padding-left: 100%;
+}
+#news-ticker .ticker-label {
+  background: #a8f0c0;
+  color: #1a6b3a;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 4px;
+  margin-left: 16px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 51;
+  white-space: nowrap;
+}
 
 </style>
 </head>
@@ -716,6 +748,10 @@ body.dark-mode .report-table td, body.dark-mode .report-table th { background: #
 </div>
 </div>
 <div class="main-area">
+<div id="news-ticker">
+  <span class="ticker-label">📢 עדכונים</span>
+  <div class="ticker-inner" id="ticker-text"></div>
+</div>
 <div class="topbar">
 <h2 id="page-title">לוח בקרה</h2>
 <div class="topbar-actions" id="topbar-actions"></div><button id="static-refresh-btn" onclick="(function(b){b.style.transition='transform 0.5s';b.style.transform='rotate(360deg)';setTimeout(function(){b.style.transform='';b.style.transition='';renderView(state.currentView,state.currentExtra)},500)})(this)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;flex-shrink:0;">↻</button><button id="dark-mode-btn" onclick="toggleDarkMode()" style="width:32px;height:32px;border-radius:50%;border:1px solid #d0ddd3;background:transparent;cursor:pointer;font-size:16px;" title="מצב לילה">🌙</button>
@@ -1091,7 +1127,7 @@ playNotifSound('new');
 });
 }
 state.questions = newQs;
-buildNav();
+buildNav(); setTimeout(updateNewsTicker, 500);
 if (state.currentView === 'inbox' || state.currentView === 'inbox-filter-open' || state.currentView === 'dashboard') {
 renderView(state.currentView);
 }
@@ -1181,7 +1217,7 @@ function initFirebase() {
 loadFromFirebase().then(() => {
 applyTheme(state.settings.theme);
 startRealtimeListeners(); setTimeout(loadUserPrefs,200);
-if (state.role) buildNav();
+if (state.role) buildNav(); setTimeout(updateNewsTicker, 500);
 if (state.role === 'advisor' && state.currentAdvisor) {
 setTimeout(() => {
 const aId = state.currentAdvisor.id;
@@ -1326,7 +1362,7 @@ document.getElementById('sidebar-subtitle').textContent = state.settings.centerN
 applyTheme(state.settings.theme);
 setTimeout(() => updateSidebarLogo(state.settings.theme.logoUrl||""), 50);
 initNotifications();
-buildNav();
+buildNav(); setTimeout(updateNewsTicker, 500);
 if (role === 'manager') {
 renderView('dashboard');
 setTimeout(() => {
@@ -1337,6 +1373,18 @@ sendNotification(`⚠ ${overdue.length} שאלות באיחור`, overdue.map(q=
 }, 1500);
 } else renderView('advisor-inbox');
 }
+
+function updateNewsTicker() {
+  var announcements = (state.announcements || []);
+  if (!announcements.length) { document.getElementById('news-ticker').style.display='none'; return; }
+  var sorted = announcements.slice().sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+  var texts = sorted.slice(0,10).map(function(a){
+    return '📌 ' + (a.title||'') + (a.body ? ': ' + a.body.substring(0,80) : '');
+  });
+  document.getElementById('ticker-text').textContent = texts.join('   ◆   ');
+  document.getElementById('news-ticker').style.display = 'block';
+}
+
 function buildNav() {
 const nav = document.getElementById('sidebar-nav');
 let items = [];
@@ -1736,7 +1784,7 @@ q.messages.push({ from: 'manager', text, time: `${now.getHours()}:${String(now.g
 notifyAdvisor(q, text);
 }
 q.status = 'closed';
-buildNav();
+buildNav(); setTimeout(updateNewsTicker, 500);
 saveToStorage();
 saveQuestionToFirebase(q);
 showToast('שאלה נסגרה בהצלחה');
@@ -1745,7 +1793,7 @@ renderView('inbox');
 function closeQuestion(qId) {
 const q = state.questions.find(x => x.id === qId);
 q.status = 'closed';
-buildNav();
+buildNav(); setTimeout(updateNewsTicker, 500);
 saveToStorage();
 saveQuestionToFirebase(q);
 showToast('שאלה סומנה כסגורה');
@@ -1937,7 +1985,7 @@ openAdvisorThread(qId);
 function managerDeleteQuestion(qId) {
 if (!confirm('למחוק את השאלה לצמיתות? פעולה זו לא ניתנת לביטול.')) return;
 state.questions = state.questions.filter(q => q.id !== qId);
-buildNav();
+buildNav(); setTimeout(updateNewsTicker, 500);
 saveToStorage();
 deleteQuestionFromFirebase(qId);
 showToast('השאלה נמחקה');
@@ -1946,7 +1994,7 @@ renderView('inbox');
 function deleteQuestion(qId) {
 if (!confirm('למחוק את השאלה לצמיתות?')) return;
 state.questions = state.questions.filter(q => q.id !== qId);
-buildNav();
+buildNav(); setTimeout(updateNewsTicker, 500);
 saveToStorage();
 deleteQuestionFromFirebase(qId);
 showToast('השאלה נמחקה');
@@ -2063,7 +2111,7 @@ messages: [firstMsg]
 };
 pendingFile = null;
 state.questions.push(newQ);
-buildNav();
+buildNav(); setTimeout(updateNewsTicker, 500);
 saveToStorage();
 saveQuestionToFirebase(newQ);
 notifyManager(state.currentAdvisor.name, subject, text);
@@ -3014,7 +3062,7 @@ const a = state.advisors.find(x => x.id === id);
 const newName = document.getElementById(`adv-name-${id}`).value.trim();
 if (newName) a.name = newName;
 showToast('שם יועץ עודכן');
-buildNav();
+buildNav(); setTimeout(updateNewsTicker, 500);
 saveToStorage();
 const opt = document.querySelector(`#advisor-select option[value="${id}"]`);
 if (opt) opt.textContent = a.name;
