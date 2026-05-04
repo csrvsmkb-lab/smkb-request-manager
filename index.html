@@ -2403,21 +2403,34 @@ const anns = [...state.announcements].sort((a,b) => b.id - a.id);
 return `<div class="card">
 ${anns.length === 0 ? '<div class="empty-state"><p>אין עדכונים חדשים</p></div>' : ''}
 ${anns.map(a => {
-const read = a.readBy && a.readBy.includes(advisorId);
-return `<div style="padding:16px;margin-bottom:10px;border-radius:12px;background:${read ? '#fafdf9' : '#f0f7f2'};border:1.5px solid ${read ? '#eef2ef' : '#a8d8b8'};">
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-<div style="font-size:15px;font-weight:700;color:#1a2e1f;">${a.title}</div>
-${read ? '<span style="font-size:11px;color:#1a6b3a;font-weight:600;">✓ נקרא</span>' : '<span style="font-size:11px;background:#1a6b3a;color:white;padding:2px 8px;border-radius:10px;font-weight:600;">חדש</span>'}
-</div>
-<div style="font-size:13px;color:#4a6650;line-height:1.6;margin-bottom:10px;">${a.body}</div>
-<div style="display:flex;align-items:center;justify-content:space-between;">
-<div style="font-size:11px;color:#8aab92;">${a.date}</div>
-${!read ? `<button onclick="markAnnouncementRead(${a.id})" style="padding:7px 16px;background:#1a6b3a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">✓ קראתי</button>` : ''}
-</div>
-</div>`;
+  const read = localStorage.getItem('ann_read_' + a.id) || (a.readBy && a.readBy.includes(advisorId));
+  const fileHtml = a.file ? `
+    <div style="margin:10px 0;padding:10px;background:#f0f9f4;border-radius:8px;border:1px solid #a8f0c0;display:flex;align-items:center;gap:10px;">
+      <span>📎</span>
+      <span style="font-size:13px;font-weight:600;">${a.file.name}</span>
+      <button onclick="window.open('${a.file.data}','_blank')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #1a6b3a;background:#fff;color:#1a6b3a;cursor:pointer;">פתח 👁</button>
+      <a href="${a.file.data}" download="${a.file.name}" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #1a6b3a;background:#1a6b3a;color:#fff;text-decoration:none;">הורד ⬇</a>
+    </div>` : '';
+  const readBtn = read ?
+    '<span style="font-size:12px;color:#1a6b3a;font-weight:600;">✅ קראתי — תודה!</span>' :
+    `<button onclick="markAnnRead('${a.id}',this)" style="font-size:12px;padding:5px 14px;border-radius:8px;border:none;background:#1a6b3a;color:#fff;cursor:pointer;font-weight:600;">✅ קראתי — תודה!</button>`;
+  return `<div style="padding:18px;margin-bottom:12px;border-radius:12px;background:${read ? '#fafdf9' : '#f0f7f2'};border:1.5px solid ${read ? '#eef2ef' : '#a8d8b8'};">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:16px;font-weight:700;color:#1a2e1f;">${a.title}</div>
+      ${read ? '<span style="font-size:11px;color:#1a6b3a;font-weight:600;">✓ נקרא</span>' : '<span style="font-size:11px;background:#1a6b3a;color:white;padding:2px 8px;border-radius:10px;font-weight:600;">חדש</span>'}
+    </div>
+    <div style="font-size:14px;color:#4a6650;line-height:1.7;margin-bottom:12px;white-space:pre-wrap;">${a.body}</div>
+    ${fileHtml}
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+      ${readBtn}
+      <button onclick="openFeedbackModal('${a.id}','${(a.title||'').replace(/'/g,"\'")}')" style="font-size:12px;padding:5px 14px;border-radius:8px;border:1.5px solid #1a6b3a;background:#fff;color:#1a6b3a;cursor:pointer;">💬 שלח משוב</button>
+    </div>
+  </div>`;
 }).join('')}
 </div>`;
 }
+
+
 function openNewAnnouncementModal() {
 window._annFileData = null;
 openModal('עדכון חדש לכל היועצים', `
