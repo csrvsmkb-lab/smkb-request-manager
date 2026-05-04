@@ -1124,7 +1124,7 @@ buildNav(); setTimeout(updateNewsTicker, 500);
 if (state.currentView === 'inbox' || state.currentView === 'inbox-filter-open' || state.currentView === 'dashboard') {
 renderView(state.currentView);
 }
-if (state.currentView === 'advisor-inbox') renderView('advisor-inbox');
+if (state.currentView === 'advisor-inbox') renderView('advisor-dashboard');
 if (state.currentView === 'advisor-dashboard') renderView('advisor-dashboard');
 }
 });
@@ -2338,6 +2338,65 @@ ${a.readBy && a.readBy.length > 0 ? `<div style="font-size:11px;color:#1a6b3a;ma
 `).join('')}
 </div>`;
 }
+function openAnnouncementView(ann) {
+const fileHtml = ann.file ? `
+<div style="margin:16px 0;padding:12px;background:#f0f9f4;border-radius:8px;border:1.5px solid #a8f0c0;">
+<span style="font-weight:600;">📎 קובץ מצורף:</span>
+<a href="${ann.file.data}" download="${ann.file.name}" target="_blank"
+   style="color:#1a6b3a;text-decoration:underline;margin-right:8px;">${ann.file.name}</a>
+<button onclick="window.open('${ann.file.data}','_blank')" class="btn-sm" style="font-size:11px;">פתח בדפדפן 👁</button>
+</div>` : '';
+
+const readKey = 'ann_read_' + ann.id;
+const alreadyRead = localStorage.getItem(readKey);
+const readHtml = alreadyRead ?
+  '<div style="color:#1a6b3a;font-weight:600;margin-top:12px;">✅ קראתי — תודה!</div>' :
+  `<button class="btn-sm btn-accent" onclick="markAnnRead('${ann.id}', this)" style="margin-top:12px;">✅ קראתי — תודה!</button>`;
+
+openModal(ann.title, `
+<div style="font-size:15px;line-height:1.7;white-space:pre-wrap;padding:8px 0;">${ann.body||''}</div>
+${fileHtml}
+<hr style="border:none;border-top:1px solid #e0e8e4;margin:16px 0;">
+${readHtml}
+<div style="margin-top:12px;">
+<button class="btn-sm" onclick="openFeedbackModal('${ann.id}','${(ann.title||'').replace(/'/g,"\'")}')">💬 שלח משוב / שאלה</button>
+</div>
+`, '<button class="btn-sm" onclick="closeModal()">סגור</button>');
+}
+
+function markAnnRead(annId, btn) {
+localStorage.setItem('ann_read_' + annId, '1');
+btn.outerHTML = '<div style="color:#1a6b3a;font-weight:600;margin-top:12px;">✅ קראתי — תודה!</div>';
+}
+
+function openFeedbackModal(annId, annTitle) {
+closeModal();
+setTimeout(function() {
+openModal('💬 משוב על: ' + annTitle, `
+<div class="form-group">
+<label class="form-label">הודעה / שאלה / תיקון</label>
+<textarea class="form-textarea" id="feedback-body" rows="5" placeholder="כתוב כאן את המשוב שלך..." style="min-height:120px;"></textarea>
+</div>
+`, `<button class="btn-sm" onclick="closeModal()">ביטול</button>
+<button class="btn-sm btn-accent" onclick="sendFeedback('${annId}','${annTitle.replace(/'/g,"\'")}')">שלח 📨</button>`);
+}, 200);
+}
+
+async function sendFeedback(annId, annTitle) {
+const body = document.getElementById('feedback-body')?.value.trim();
+if (!body) { showToast('נא לכתוב משוב'); return; }
+const now = Date.now();
+const fb = {
+  id: now, annId, annTitle, body,
+  advisorName: state.currentAdvisor?.name || 'מנהל',
+  advisorId: state.currentAdvisor?.id || 'manager',
+  createdAt: now
+};
+await window.fsSetDoc(window.db, 'ann_feedback', String(now), fb);
+showToast('המשוב נשלח בהצלחה! 🙏');
+closeModal();
+}
+
 function renderAdvisorAnnouncements() {
 const advisorId = state.currentAdvisor?.id;
 const anns = [...state.announcements].sort((a,b) => b.id - a.id);
@@ -2360,6 +2419,7 @@ ${!read ? `<button onclick="markAnnouncementRead(${a.id})" style="padding:7px 16
 </div>`;
 }
 function openNewAnnouncementModal() {
+window._annFileData = null;
 openModal('עדכון חדש לכל היועצים', `
 <div class="form-group">
 <label class="form-label">כותרת העדכון</label>
@@ -2367,10 +2427,27 @@ openModal('עדכון חדש לכל היועצים', `
 </div>
 <div class="form-group">
 <label class="form-label">תוכן ההודעה</label>
-<textarea class="form-textarea" id="ann-body" rows="4" placeholder="פרטי העדכון..."></textarea>
+<textarea class="form-textarea" id="ann-body" rows="7" placeholder="פרטי העדכון..." style="min-height:140px;"></textarea>
+</div>
+<div class="form-group">
+<label class="form-label">📎 צירוף קובץ (אופציונלי — PDF/תמונה/Word עד 500KB)</label>
+<input type="file" id="ann-file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" style="font-size:13px;padding:8px;border:1.5px solid #d0ddd3;border-radius:8px;width:100%;cursor:pointer;" onchange="handleAnnFile(this)" />
+<div id="ann-file-preview" style="margin-top:6px;font-size:12px;color:#1a6b3a;font-weight:600;"></div>
 </div>
 `, `<button class="btn-sm" onclick="closeModal()">ביטול</button>
 <button class="btn-sm btn-accent" onclick="sendAnnouncement()">שלח לכולם 📢</button>`);
+}
+
+function handleAnnFile(input) {
+const file = input.files[0];
+if (!file) return;
+if (file.size > 500000) { showToast('הקובץ גדול מדי — עד 500KB'); input.value=''; return; }
+const reader = new FileReader();
+reader.onload = function(e) {
+  window._annFileData = { name: file.name, type: file.type, data: e.target.result };
+  document.getElementById('ann-file-preview').textContent = '✅ ' + file.name + ' (' + Math.round(file.size/1024) + 'KB)';
+};
+reader.readAsDataURL(file);
 }
 function sendAnnouncement() {
 const title = document.getElementById('ann-title')?.value.trim();
