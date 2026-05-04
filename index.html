@@ -1364,7 +1364,7 @@ if (overdue.length > 0) {
 sendNotification(`⚠ ${overdue.length} שאלות באיחור`, overdue.map(q=>q.advisorName+': '+q.subject).join('\n'), 'new');
 }
 }, 1500);
-} else { renderView('advisor-inbox'); setTimeout(updateNewsTicker, 500); }
+} else { renderView('advisor-dashboard'); setTimeout(updateNewsTicker, 500); }
 }
 
 function updateNewsTicker() {
