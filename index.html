@@ -2382,7 +2382,9 @@ openModal('💬 משוב על: ' + annTitle, `
 }, 200);
 }
 
-async function sendFeedback(annId, annTitle) {
+async function sendFeedback() {
+const annId = window._feedbackAnnId;
+const annTitle = window._feedbackAnnTitle;
 const body = document.getElementById('feedback-body')?.value.trim();
 if (!body) { showToast('נא לכתוב משוב'); return; }
 const now = Date.now();
@@ -2392,8 +2394,8 @@ const fb = {
   advisorId: state.currentAdvisor?.id || 'manager',
   createdAt: now
 };
-await window.fsSetDoc(window.fsDoc(window.db, 'ann_feedback', String(now)), fb);
-showToast('המשוב נשלח בהצלחה! 🙏');
+try { await window.fsSetDoc(window.fsDoc(window.db, 'ann_feedback', String(now)), fb); showToast('המשוב נשלח! 🙏'); closeModal(); } catch(e) { console.error('feedback error:', e); showToast('שגיאה: ' + e.message); }
+if(false){('המשוב נשלח בהצלחה! 🙏');
 closeModal();
 }
 
