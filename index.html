@@ -537,6 +537,13 @@ body.dark-mode .thread-msg.from-advisor{background:#0d3d20!important;border-colo
 body.dark-mode { --text: #f0f0f0 !important; --text2: #cccccc !important; --text3: #aaaaaa !important; --bg: #1a1a2e !important; --surface: #16213e !important; --surface2: #0f3460 !important; }
 body.dark-mode .card, body.dark-mode .metric, body.dark-mode .inbox-item, body.dark-mode .report-table td, body.dark-mode .report-table th { color: #f0f0f0 !important; }
 body.dark-mode input, body.dark-mode textarea, body.dark-mode select { color: #f0f0f0 !important; background: #2a2a4a !important; }
+
+body.dark-mode * { color: #e8e8e8 !important; }
+body.dark-mode .card, body.dark-mode .metric, body.dark-mode .topbar, body.dark-mode .page-content { background-color: #2a2a3e !important; }
+body.dark-mode .report-table td, body.dark-mode .report-table th { background-color: #2a2a3e !important; border-color: #444 !important; }
+body.dark-mode input, body.dark-mode textarea, body.dark-mode select { background-color: #3a3a5e !important; color: #e8e8e8 !important; border-color: #555 !important; }
+body.dark-mode .sidebar { background: linear-gradient(180deg, #0d1f14 0%, #0f2a1c 100%) !important; }
+
 </style>
 </head>
 <body>
@@ -1370,7 +1377,7 @@ const content = document.getElementById('page-content');
 const actions = document.getElementById('topbar-actions');
 const title = document.getElementById('page-title');
 // Add refresh button to every page
-actions.innerHTML += `<button onclick="(function(b){b.style.transition='transform 0.5s';b.style.transform='rotate(360deg)';setTimeout(function(){b.style.transform='';b.style.transition='';renderView(state.currentView,state.currentExtra)},500)})(this)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
+actions.innerHTML = `<button onclick="(function(b){b.style.transition='transform 0.5s';b.style.transform='rotate(360deg)';setTimeout(function(){b.style.transform='';b.style.transition='';renderView(state.currentView,state.currentExtra)},500)})(this)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
 if (viewId === 'dashboard') {
 title.textContent = 'לוח בקרה';
 content.innerHTML = renderDashboard();
