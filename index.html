@@ -533,50 +533,6 @@ body.dark-mode .btn-sm:not(.btn-accent){background:#1a2e1f!important;border-colo
 body.dark-mode .modal{background:#1a2e1f!important}
 body.dark-mode .inbox-item:hover{background:#0d3d20!important}
 body.dark-mode .thread-msg.from-advisor{background:#0d3d20!important;border-color:#2d4a35!important}
-
-
-body.dark-mode .sidebar { background: linear-gradient(180deg, #0d1f14 0%, #0f2a1c 100%) !important; }
-
-
-
-@keyframes ticker-scroll {
-  0%   { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
-}
-#news-ticker {
-  width: 100%;
-  background: linear-gradient(90deg, #1a6b3a, #2d9e5f);
-  color: white;
-  padding: 7px 0;
-  overflow: hidden;
-  white-space: nowrap;
-  position: relative;
-  z-index: 50;
-  flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 500;
-  display: none;
-}
-#news-ticker .ticker-inner {
-  display: inline-block;
-  animation: ticker-scroll 55s linear infinite;
-  padding-left: 100%;
-}
-#news-ticker .ticker-label {
-  background: #a8f0c0;
-  color: #1a6b3a;
-  font-weight: 700;
-  padding: 2px 10px;
-  border-radius: 4px;
-  margin-left: 16px;
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 51;
-  white-space: nowrap;
-}
-
 </style>
 </head>
 <body>
@@ -741,13 +697,9 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, #0d1f14 0%, #0f2a1
 </div>
 </div>
 <div class="main-area">
-<div id="news-ticker">
-  <span class="ticker-label">📢 עדכונים</span>
-  <div class="ticker-inner" id="ticker-text"></div>
-</div>
 <div class="topbar">
 <h2 id="page-title">לוח בקרה</h2>
-<div class="topbar-actions" id="topbar-actions"></div><button id="static-refresh-btn" onclick="(function(b){b.style.transition='transform 0.5s';b.style.transform='rotate(360deg)';setTimeout(function(){b.style.transform='';b.style.transition='';renderView(state.currentView,state.currentExtra)},500)})(this)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;flex-shrink:0;">↻</button><button id="dark-mode-btn" onclick="toggleDarkMode()" style="width:32px;height:32px;border-radius:50%;border:1px solid #d0ddd3;background:transparent;cursor:pointer;font-size:16px;" title="מצב לילה">🌙</button>
+<div class="topbar-actions" id="topbar-actions"></div><button id="dark-mode-btn" onclick="toggleDarkMode()" style="width:32px;height:32px;border-radius:50%;border:1px solid #d0ddd3;background:transparent;cursor:pointer;font-size:16px;" title="מצב לילה">🌙</button>
 <div id="firebase-status" style="font-size:10px;color:#8aab92;display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;background:#f0f7f2;"><span id="fb-dot" style="width:6px;height:6px;border-radius:50%;background:#ccc;display:inline-block;"></span><span id="fb-label">מתחבר...</span></div>
 </div>
 <div class="page-content" id="page-content">
@@ -1120,11 +1072,11 @@ playNotifSound('new');
 });
 }
 state.questions = newQs;
-buildNav(); setTimeout(updateNewsTicker, 500);
+buildNav();
 if (state.currentView === 'inbox' || state.currentView === 'inbox-filter-open' || state.currentView === 'dashboard') {
 renderView(state.currentView);
 }
-if (state.currentView === 'advisor-inbox') renderView('advisor-dashboard');
+if (state.currentView === 'advisor-inbox') renderView('advisor-inbox');
 if (state.currentView === 'advisor-dashboard') renderView('advisor-dashboard');
 }
 });
@@ -1210,7 +1162,7 @@ function initFirebase() {
 loadFromFirebase().then(() => {
 applyTheme(state.settings.theme);
 startRealtimeListeners(); setTimeout(loadUserPrefs,200);
-if (state.role) buildNav(); setTimeout(updateNewsTicker, 500);
+if (state.role) buildNav();
 if (state.role === 'advisor' && state.currentAdvisor) {
 setTimeout(() => {
 const aId = state.currentAdvisor.id;
@@ -1355,7 +1307,7 @@ document.getElementById('sidebar-subtitle').textContent = state.settings.centerN
 applyTheme(state.settings.theme);
 setTimeout(() => updateSidebarLogo(state.settings.theme.logoUrl||""), 50);
 initNotifications();
-buildNav(); setTimeout(updateNewsTicker, 500);
+buildNav();
 if (role === 'manager') {
 renderView('dashboard');
 setTimeout(() => {
@@ -1364,20 +1316,8 @@ if (overdue.length > 0) {
 sendNotification(`⚠ ${overdue.length} שאלות באיחור`, overdue.map(q=>q.advisorName+': '+q.subject).join('\n'), 'new');
 }
 }, 1500);
-} else { renderView('advisor-dashboard'); setTimeout(updateNewsTicker, 500); }
+} else renderView('advisor-inbox');
 }
-
-function updateNewsTicker() {
-  var announcements = (state.announcements || []);
-  if (!announcements.length) { document.getElementById('news-ticker').style.display='none'; return; }
-  var sorted = announcements.slice().sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
-  var texts = sorted.slice(0,10).map(function(a){
-    return '📌 ' + (a.title||'') + (a.body ? ': ' + a.body.substring(0,80) : '');
-  });
-  document.getElementById('ticker-text').textContent = texts.join('   ◆   ');
-  document.getElementById('news-ticker').style.display = 'block';
-}
-
 function buildNav() {
 const nav = document.getElementById('sidebar-nav');
 let items = [];
@@ -1426,7 +1366,7 @@ const content = document.getElementById('page-content');
 const actions = document.getElementById('topbar-actions');
 const title = document.getElementById('page-title');
 // Add refresh button to every page
-actions.innerHTML = '';
+actions.innerHTML += `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
 if (viewId === 'dashboard') {
 title.textContent = 'לוח בקרה';
 content.innerHTML = renderDashboard();
@@ -1777,7 +1717,7 @@ q.messages.push({ from: 'manager', text, time: `${now.getHours()}:${String(now.g
 notifyAdvisor(q, text);
 }
 q.status = 'closed';
-buildNav(); setTimeout(updateNewsTicker, 500);
+buildNav();
 saveToStorage();
 saveQuestionToFirebase(q);
 showToast('שאלה נסגרה בהצלחה');
@@ -1786,7 +1726,7 @@ renderView('inbox');
 function closeQuestion(qId) {
 const q = state.questions.find(x => x.id === qId);
 q.status = 'closed';
-buildNav(); setTimeout(updateNewsTicker, 500);
+buildNav();
 saveToStorage();
 saveQuestionToFirebase(q);
 showToast('שאלה סומנה כסגורה');
@@ -1978,7 +1918,7 @@ openAdvisorThread(qId);
 function managerDeleteQuestion(qId) {
 if (!confirm('למחוק את השאלה לצמיתות? פעולה זו לא ניתנת לביטול.')) return;
 state.questions = state.questions.filter(q => q.id !== qId);
-buildNav(); setTimeout(updateNewsTicker, 500);
+buildNav();
 saveToStorage();
 deleteQuestionFromFirebase(qId);
 showToast('השאלה נמחקה');
@@ -1987,7 +1927,7 @@ renderView('inbox');
 function deleteQuestion(qId) {
 if (!confirm('למחוק את השאלה לצמיתות?')) return;
 state.questions = state.questions.filter(q => q.id !== qId);
-buildNav(); setTimeout(updateNewsTicker, 500);
+buildNav();
 saveToStorage();
 deleteQuestionFromFirebase(qId);
 showToast('השאלה נמחקה');
@@ -2104,7 +2044,7 @@ messages: [firstMsg]
 };
 pendingFile = null;
 state.questions.push(newQ);
-buildNav(); setTimeout(updateNewsTicker, 500);
+buildNav();
 saveToStorage();
 saveQuestionToFirebase(newQ);
 notifyManager(state.currentAdvisor.name, subject, text);
@@ -2338,103 +2278,28 @@ ${a.readBy && a.readBy.length > 0 ? `<div style="font-size:11px;color:#1a6b3a;ma
 `).join('')}
 </div>`;
 }
-function openAnnouncementView(ann) {
-const fileHtml = ann.file ? `
-<div style="margin:16px 0;padding:12px;background:#f0f9f4;border-radius:8px;border:1.5px solid #a8f0c0;">
-<span style="font-weight:600;">📎 קובץ מצורף:</span>
-<a href="${ann.file.data}" download="${ann.file.name}" target="_blank"
-   style="color:#1a6b3a;text-decoration:underline;margin-right:8px;">${ann.file.name}</a>
-<button onclick="window.open('${ann.file.data}','_blank')" class="btn-sm" style="font-size:11px;">פתח בדפדפן 👁</button>
-</div>` : '';
-
-const readKey = 'ann_read_' + ann.id;
-const alreadyRead = localStorage.getItem(readKey);
-const readHtml = alreadyRead ?
-  '<div style="color:#1a6b3a;font-weight:600;margin-top:12px;">✅ קראתי — תודה!</div>' :
-  `<button class="btn-sm btn-accent" onclick="markAnnRead('${ann.id}', this)" style="margin-top:12px;">✅ קראתי — תודה!</button>`;
-
-openModal(ann.title, `
-<div style="font-size:15px;line-height:1.7;white-space:pre-wrap;padding:8px 0;">${ann.body||''}</div>
-${fileHtml}
-<hr style="border:none;border-top:1px solid #e0e8e4;margin:16px 0;">
-${readHtml}
-<div style="margin-top:12px;">
-<button class="btn-sm" onclick="openFeedbackModal('${ann.id}','${(ann.title||'').replace(/'/g,"\'")}')">💬 שלח משוב / שאלה</button>
-</div>
-`, '<button class="btn-sm" onclick="closeModal()">סגור</button>');
-}
-
-function markAnnRead(annId, btn) {
-localStorage.setItem('ann_read_' + annId, '1');
-btn.outerHTML = '<div style="color:#1a6b3a;font-weight:600;margin-top:12px;">✅ קראתי — תודה!</div>';
-}
-
-function openFeedbackModal(annId, annTitle) {
-closeModal();
-setTimeout(function() {
-openModal('💬 משוב על: ' + annTitle, `
-<div class="form-group">
-<label class="form-label">הודעה / שאלה / תיקון</label>
-<textarea class="form-textarea" id="feedback-body" rows="5" placeholder="כתוב כאן את המשוב שלך..." style="min-height:120px;"></textarea>
-</div>
-`, `<button class="btn-sm" onclick="closeModal()">ביטול</button>
-<button class="btn-sm btn-accent" onclick="sendFeedback('${annId}','${annTitle.replace(/'/g,"\'")}')">שלח 📨</button>`);
-}, 200);
-}
-
-async function sendFeedback() {
-const annId = window._feedbackAnnId;
-const annTitle = window._feedbackAnnTitle;
-const body = document.getElementById('feedback-body')?.value.trim();
-if (!body) { showToast('נא לכתוב משוב'); return; }
-const now = Date.now();
-const fb = {
-  id: now, annId, annTitle, body,
-  advisorName: state.currentAdvisor?.name || 'מנהל',
-  advisorId: state.currentAdvisor?.id || 'manager',
-  createdAt: now
-};
-try { await window.fsSetDoc(window.fsDoc(window.db, 'ann_feedback', String(now)), fb); showToast('המשוב נשלח! 🙏'); closeModal(); } catch(e) { console.error('feedback error:', e); showToast('שגיאה: ' + e.message); }
-if(false){('המשוב נשלח בהצלחה! 🙏');
-closeModal();
-}
-
 function renderAdvisorAnnouncements() {
 const advisorId = state.currentAdvisor?.id;
 const anns = [...state.announcements].sort((a,b) => b.id - a.id);
 return `<div class="card">
 ${anns.length === 0 ? '<div class="empty-state"><p>אין עדכונים חדשים</p></div>' : ''}
 ${anns.map(a => {
-  const read = localStorage.getItem('ann_read_' + a.id) || (a.readBy && a.readBy.includes(advisorId));
-  const fileHtml = a.file ? `
-    <div style="margin:10px 0;padding:10px;background:#f0f9f4;border-radius:8px;border:1px solid #a8f0c0;display:flex;align-items:center;gap:10px;">
-      <span>📎</span>
-      <span style="font-size:13px;font-weight:600;">${a.file.name}</span>
-      <button onclick="window.open('${a.file.data}','_blank')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #1a6b3a;background:#fff;color:#1a6b3a;cursor:pointer;">פתח 👁</button>
-      <a href="${a.file.data}" download="${a.file.name}" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #1a6b3a;background:#1a6b3a;color:#fff;text-decoration:none;">הורד ⬇</a>
-    </div>` : '';
-  const readBtn = read ?
-    '<span style="font-size:12px;color:#1a6b3a;font-weight:600;">✅ קראתי — תודה!</span>' :
-    `<button onclick="markAnnRead('${a.id}',this)" style="font-size:12px;padding:5px 14px;border-radius:8px;border:none;background:#1a6b3a;color:#fff;cursor:pointer;font-weight:600;">✅ קראתי — תודה!</button>`;
-  return `<div style="padding:18px;margin-bottom:12px;border-radius:12px;background:${read ? '#fafdf9' : '#f0f7f2'};border:1.5px solid ${read ? '#eef2ef' : '#a8d8b8'};">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <div style="font-size:16px;font-weight:700;color:#1a2e1f;">${a.title}</div>
-      ${read ? '<span style="font-size:11px;color:#1a6b3a;font-weight:600;">✓ נקרא</span>' : '<span style="font-size:11px;background:#1a6b3a;color:white;padding:2px 8px;border-radius:10px;font-weight:600;">חדש</span>'}
-    </div>
-    <div style="font-size:14px;color:#4a6650;line-height:1.7;margin-bottom:12px;white-space:pre-wrap;">${a.body}</div>
-    ${fileHtml}
-    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
-      ${readBtn}
-      <button onclick="openFeedbackModal('${a.id}','${(a.title||'').replace(/'/g,"\'")}')" style="font-size:12px;padding:5px 14px;border-radius:8px;border:1.5px solid #1a6b3a;background:#fff;color:#1a6b3a;cursor:pointer;">💬 שלח משוב</button>
-    </div>
-  </div>`;
+const read = a.readBy && a.readBy.includes(advisorId);
+return `<div style="padding:16px;margin-bottom:10px;border-radius:12px;background:${read ? '#fafdf9' : '#f0f7f2'};border:1.5px solid ${read ? '#eef2ef' : '#a8d8b8'};">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+<div style="font-size:15px;font-weight:700;color:#1a2e1f;">${a.title}</div>
+${read ? '<span style="font-size:11px;color:#1a6b3a;font-weight:600;">✓ נקרא</span>' : '<span style="font-size:11px;background:#1a6b3a;color:white;padding:2px 8px;border-radius:10px;font-weight:600;">חדש</span>'}
+</div>
+<div style="font-size:13px;color:#4a6650;line-height:1.6;margin-bottom:10px;">${a.body}</div>
+<div style="display:flex;align-items:center;justify-content:space-between;">
+<div style="font-size:11px;color:#8aab92;">${a.date}</div>
+${!read ? `<button onclick="markAnnouncementRead(${a.id})" style="padding:7px 16px;background:#1a6b3a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">✓ קראתי</button>` : ''}
+</div>
+</div>`;
 }).join('')}
 </div>`;
 }
-
-
 function openNewAnnouncementModal() {
-window._annFileData = null;
 openModal('עדכון חדש לכל היועצים', `
 <div class="form-group">
 <label class="form-label">כותרת העדכון</label>
@@ -2442,27 +2307,10 @@ openModal('עדכון חדש לכל היועצים', `
 </div>
 <div class="form-group">
 <label class="form-label">תוכן ההודעה</label>
-<textarea class="form-textarea" id="ann-body" rows="7" placeholder="פרטי העדכון..." style="min-height:140px;"></textarea>
-</div>
-<div class="form-group">
-<label class="form-label">📎 צירוף קובץ (אופציונלי — PDF/תמונה/Word עד 500KB)</label>
-<input type="file" id="ann-file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" style="font-size:13px;padding:8px;border:1.5px solid #d0ddd3;border-radius:8px;width:100%;cursor:pointer;" onchange="handleAnnFile(this)" />
-<div id="ann-file-preview" style="margin-top:6px;font-size:12px;color:#1a6b3a;font-weight:600;"></div>
+<textarea class="form-textarea" id="ann-body" rows="4" placeholder="פרטי העדכון..."></textarea>
 </div>
 `, `<button class="btn-sm" onclick="closeModal()">ביטול</button>
 <button class="btn-sm btn-accent" onclick="sendAnnouncement()">שלח לכולם 📢</button>`);
-}
-
-function handleAnnFile(input) {
-const file = input.files[0];
-if (!file) return;
-if (file.size > 500000) { showToast('הקובץ גדול מדי — עד 500KB'); input.value=''; return; }
-const reader = new FileReader();
-reader.onload = function(e) {
-  window._annFileData = { name: file.name, type: file.type, data: e.target.result };
-  document.getElementById('ann-file-preview').textContent = '✅ ' + file.name + ' (' + Math.round(file.size/1024) + 'KB)';
-};
-reader.readAsDataURL(file);
 }
 function sendAnnouncement() {
 const title = document.getElementById('ann-title')?.value.trim();
@@ -2475,7 +2323,6 @@ title, body,
 date: `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`,
 readBy: [],
 };
-if (window._annFileData) { ann.file = window._annFileData; }
 state.announcements.push(ann);
 saveAnnouncementsToFirebase();
 sendNotification('עדכון חדש ממנהל המרכז', title + ': ' + body.substring(0,50), 'new');
@@ -3029,7 +2876,7 @@ return `
 </div>
 </div>
 <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
-<button class="btn-sm btn-accent" onclick="saveGeneralSettings()">💾 שמור הגדרות</button>
+<button class="btn-sm btn-accent" onclick="saveGeneralSettings()">שמור הגדרות</button>
 <button class="btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="if(confirm('למחוק את כל הנתונים השמורים ולאפס למצב ברירת מחדל?')){localStorage.removeItem('merkaz_yiuts_v1');location.reload();}">אפס נתונים</button>
 </div>
 </div>
@@ -3098,7 +2945,7 @@ ${['Heebo','Assistant','Rubik','Frank Ruhl Libre','Secular One'].map(f=>`<option
 </div>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
 <button class="btn-sm" onclick="resetTheme()">איפוס ברירת מחדל</button>
-<button class="btn-sm btn-accent" onclick="saveAppearance()">💾 שמור מראה</button>
+<button class="btn-sm btn-accent" onclick="saveAppearance()">שמור מראה</button>
 </div>
 </div>
 <div class="card settings-section">
@@ -3131,7 +2978,7 @@ ${state.topics.map(t => `
 </div>
 `).join('')}
 <div style="text-align:left;">
-<button class="btn-sm btn-accent" onclick="saveTopicTree()">💾 שמור נושאים</button>
+<button class="btn-sm btn-accent" onclick="saveTopicTree()">שמור נושאים</button>
 </div>
 </div>`;
 }
@@ -3148,7 +2995,7 @@ const a = state.advisors.find(x => x.id === id);
 const newName = document.getElementById(`adv-name-${id}`).value.trim();
 if (newName) a.name = newName;
 showToast('שם יועץ עודכן');
-buildNav(); setTimeout(updateNewsTicker, 500);
+buildNav();
 saveToStorage();
 const opt = document.querySelector(`#advisor-select option[value="${id}"]`);
 if (opt) opt.textContent = a.name;
@@ -3597,7 +3444,7 @@ openModal('הוסף הדרכה חדשה', `
 </div>
 <div id="tr-files-preview" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"></div>
 </div>
-`, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveTraining()">💾 שמור הדרכה</button>`);
+`, `<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveTraining()">שמור הדרכה</button>`);
 }
 let pendingTrainingFiles = [];
 function handleTrainingFileSelect(input) {
@@ -3737,7 +3584,7 @@ openModal('מבחן ידע חדש', `
 </div>
 <div id="qz-questions-list" style="margin-top:4px;"></div>
 <button onclick="addQuizQuestion()" style="width:100%;padding:9px;border:2px dashed #d0ddd3;border-radius:8px;background:transparent;color:#4a6650;cursor:pointer;font-size:13px;font-weight:500;margin-top:8px;">+ הוסף שאלה</button>
-`,`<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveQuiz()">💾 שמור מבחן</button>`);
+`,`<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="saveQuiz()">שמור מבחן</button>`);
 }
 let quizQCounter = 0;
 function addQuizQuestion() {
