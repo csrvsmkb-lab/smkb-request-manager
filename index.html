@@ -566,7 +566,7 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, #0d1f14 0%, #0f2a1
 }
 #news-ticker .ticker-inner {
   display: inline-block;
-  animation: ticker-scroll 30s linear infinite;
+  animation: ticker-scroll 55s linear infinite;
   padding-left: 100%;
 }
 #news-ticker .ticker-label {
@@ -1371,7 +1371,7 @@ if (overdue.length > 0) {
 sendNotification(`⚠ ${overdue.length} שאלות באיחור`, overdue.map(q=>q.advisorName+': '+q.subject).join('\n'), 'new');
 }
 }, 1500);
-} else renderView('advisor-inbox');
+} else { renderView('advisor-inbox'); setTimeout(updateNewsTicker, 500); }
 }
 
 function updateNewsTicker() {
