@@ -2473,6 +2473,7 @@ title, body,
 date: `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`,
 readBy: [],
 };
+if (window._annFileData) { ann.file = window._annFileData; }
 state.announcements.push(ann);
 saveAnnouncementsToFirebase();
 sendNotification('עדכון חדש ממנהל המרכז', title + ': ' + body.substring(0,50), 'new');
