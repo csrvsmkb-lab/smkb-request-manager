@@ -2285,20 +2285,47 @@ return `<div class="card">
 ${anns.length === 0 ? '<div class="empty-state"><p>אין עדכונים חדשים</p></div>' : ''}
 ${anns.map(a => {
 const read = a.readBy && a.readBy.includes(advisorId);
+const fileHtml = a.file ? `<div style="margin:8px 0;padding:8px 12px;background:#f0f9f4;border-radius:8px;border:1px solid #a8f0c0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<span>📎 ${a.file.name}</span>
+<button onclick="window.open('${a.file.data}','_blank')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #1a6b3a;background:#fff;color:#1a6b3a;cursor:pointer;">פתח 👁</button>
+</div>` : '';
 return `<div style="padding:16px;margin-bottom:10px;border-radius:12px;background:${read ? '#fafdf9' : '#f0f7f2'};border:1.5px solid ${read ? '#eef2ef' : '#a8d8b8'};">
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
 <div style="font-size:15px;font-weight:700;color:#1a2e1f;">${a.title}</div>
 ${read ? '<span style="font-size:11px;color:#1a6b3a;font-weight:600;">✓ נקרא</span>' : '<span style="font-size:11px;background:#1a6b3a;color:white;padding:2px 8px;border-radius:10px;font-weight:600;">חדש</span>'}
 </div>
 <div style="font-size:13px;color:#4a6650;line-height:1.6;margin-bottom:10px;">${a.body}</div>
-<div style="display:flex;align-items:center;justify-content:space-between;">
+${fileHtml}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
 <div style="font-size:11px;color:#8aab92;">${a.date}</div>
-${!read ? `<button onclick="markAnnouncementRead(${a.id})" style="padding:7px 16px;background:#1a6b3a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">✓ קראתי</button>` : ''}
+<div style="display:flex;gap:8px;">
+<button onclick="window._fbAnnId=${a.id};window._fbAnnTitle='${(a.title||'').replace(/'/g,'').replace(/`/g,'')}';openFbModal()" style="padding:5px 12px;background:#fff;color:#1a6b3a;border:1.5px solid #1a6b3a;border-radius:8px;font-size:12px;cursor:pointer;">💬 משוב</button>
+${!read ? `<button onclick="markAnnouncementRead(${a.id})" style="padding:7px 16px;background:#1a6b3a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">✅ קראתי</button>` : ''}
+</div>
 </div>
 </div>`;
 }).join('')}
 </div>`;
 }
+
+function openFbModal() {
+openModal('💬 משוב: ' + (window._fbAnnTitle||''), '<div class="form-group"><label class="form-label">הודעה / שאלה / תיקון</label><textarea class="form-textarea" id="fb-body" rows="5" style="min-height:120px;" placeholder="כתוב כאן..."></textarea></div>', '<button class="btn-sm" onclick="closeModal()">ביטול</button><button class="btn-sm btn-accent" onclick="submitFb()">שלח 📨</button>');
+}
+
+async function submitFb() {
+const body = document.getElementById('fb-body')?.value.trim();
+if (!body) { showToast('נא לכתוב משוב'); return; }
+const now = Date.now();
+try {
+  await window.fsSetDoc(window.fsDoc(window.db, 'ann_feedback', String(now)), {
+    id: now, annId: window._fbAnnId, annTitle: window._fbAnnTitle,
+    body, advisorName: state.currentAdvisor?.name || '', createdAt: now
+  });
+  showToast('המשוב נשלח! 🙏');
+  closeModal();
+} catch(e) { showToast('שגיאה: ' + e.message); }
+}
+
 function openNewAnnouncementModal() {
 openModal('עדכון חדש לכל היועצים', `
 <div class="form-group">
@@ -2311,6 +2338,7 @@ openModal('עדכון חדש לכל היועצים', `
 </div>
 `, `<button class="btn-sm" onclick="closeModal()">ביטול</button>
 <button class="btn-sm btn-accent" onclick="sendAnnouncement()">שלח לכולם 📢</button>`);
+window._annFileData=null;
 }
 function sendAnnouncement() {
 const title = document.getElementById('ann-title')?.value.trim();
@@ -2323,6 +2351,7 @@ title, body,
 date: `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`,
 readBy: [],
 };
+if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
 state.announcements.push(ann);
 saveAnnouncementsToFirebase();
 sendNotification('עדכון חדש ממנהל המרכז', title + ': ' + body.substring(0,50), 'new');
