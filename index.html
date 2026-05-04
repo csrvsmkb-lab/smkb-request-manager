@@ -2352,6 +2352,7 @@ date: `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours(
 readBy: [],
 };
 if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
+if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
 state.announcements.push(ann);
 saveAnnouncementsToFirebase();
 sendNotification('עדכון חדש ממנהל המרכז', title + ': ' + body.substring(0,50), 'new');
