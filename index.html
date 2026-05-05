@@ -2327,6 +2327,7 @@ try {
 }
 
 function openNewAnnouncementModal() {
+window._annFile = null;
 openModal('עדכון חדש לכל היועצים', `
 <div class="form-group">
 <label class="form-label">כותרת העדכון</label>
@@ -2334,11 +2335,32 @@ openModal('עדכון חדש לכל היועצים', `
 </div>
 <div class="form-group">
 <label class="form-label">תוכן ההודעה</label>
-<textarea class="form-textarea" id="ann-body" rows="4" placeholder="פרטי העדכון..."></textarea>
+<textarea class="form-textarea" id="ann-body" rows="5" placeholder="פרטי העדכון..."></textarea>
+</div>
+<div class="form-group">
+<label class="form-label">📎 צירוף קובץ (PDF/תמונה עד 500KB — אופציונלי)</label>
+<input type="file" id="ann-file-input" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" style="width:100%;padding:8px;border:1.5px solid #d0ddd3;border-radius:8px;font-size:13px;cursor:pointer;" />
+<div id="ann-file-name" style="font-size:12px;color:#1a6b3a;margin-top:4px;font-weight:600;"></div>
 </div>
 `, `<button class="btn-sm" onclick="closeModal()">ביטול</button>
-<button class="btn-sm btn-accent" onclick="sendAnnouncement()">שלח לכולם 📢</button>`);
-window._annFileData=null;
+<button class="btn-sm btn-accent" onclick="prepareAndSendAnnouncement()">שלח לכולם 📢</button>`);
+}
+
+function prepareAndSendAnnouncement() {
+const fileInput = document.getElementById('ann-file-input');
+const file = fileInput && fileInput.files[0];
+if (file) {
+  if (file.size > 500000) { showToast('קובץ גדול מדי — עד 500KB'); return; }
+  const rd = new FileReader();
+  rd.onload = function(e) {
+    window._annFile = { name: file.name, type: file.type, data: e.target.result };
+    sendAnnouncement();
+  };
+  rd.readAsDataURL(file);
+} else {
+  window._annFile = null;
+  sendAnnouncement();
+}
 }
 function sendAnnouncement() {
 const title = document.getElementById('ann-title')?.value.trim();
@@ -2354,7 +2376,7 @@ readBy: [],
 if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
 if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
 if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
-if(window._annFile){ann.file=window._annFile;}state.announcements.push(ann);
+if(window._annFile){ann.file=window._annFile;window._annFile=null;}state.announcements.push(ann);
 saveAnnouncementsToFirebase();
 sendNotification('עדכון חדש ממנהל המרכז', title + ': ' + body.substring(0,50), 'new');
 closeModal();
