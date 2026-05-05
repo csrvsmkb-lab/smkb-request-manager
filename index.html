@@ -699,7 +699,7 @@ body.dark-mode .thread-msg.from-advisor{background:#0d3d20!important;border-colo
 <div class="main-area">
 <div class="topbar">
 <h2 id="page-title">לוח בקרה</h2>
-<div class="topbar-actions" id="topbar-actions"></div><button id="dark-mode-btn" onclick="toggleDarkMode()" style="width:32px;height:32px;border-radius:50%;border:1px solid #d0ddd3;background:transparent;cursor:pointer;font-size:16px;" title="מצב לילה">🌙</button>
+<div class="topbar-actions" id="topbar-actions"></div><button id="refresh-btn" title="רענן" onclick="this.style.transform='rotate(360deg)';this.style.transition='transform 0.5s';setTimeout(()=>{this.style.transform='';this.style.transition='';renderView(state.currentView,state.currentExtra)},500)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;flex-shrink:0;">↻</button><button id="dark-mode-btn" onclick="toggleDarkMode()" style="width:32px;height:32px;border-radius:50%;border:1px solid #d0ddd3;background:transparent;cursor:pointer;font-size:16px;" title="מצב לילה">🌙</button>
 <div id="firebase-status" style="font-size:10px;color:#8aab92;display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;background:#f0f7f2;"><span id="fb-dot" style="width:6px;height:6px;border-radius:50%;background:#ccc;display:inline-block;"></span><span id="fb-label">מתחבר...</span></div>
 </div>
 <div class="page-content" id="page-content">
@@ -1366,7 +1366,7 @@ const content = document.getElementById('page-content');
 const actions = document.getElementById('topbar-actions');
 const title = document.getElementById('page-title');
 // Add refresh button to every page
-actions.innerHTML += `<button onclick="renderView(state.currentView, state.currentExtra)" title="רענן" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #d0ddd3;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#1a6b3a;" onmouseover="this.style.background='#f0f7f2'" onmouseout="this.style.background='#fff'">↻</button>`;
+actions.innerHTML = '';
 if (viewId === 'dashboard') {
 title.textContent = 'לוח בקרה';
 content.innerHTML = renderDashboard();
@@ -2354,7 +2354,7 @@ readBy: [],
 if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
 if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
 if(window._annFileData){ann.file=window._annFileData;window._annFileData=null;}
-state.announcements.push(ann);
+if(window._annFile){ann.file=window._annFile;}state.announcements.push(ann);
 saveAnnouncementsToFirebase();
 sendNotification('עדכון חדש ממנהל המרכז', title + ': ' + body.substring(0,50), 'new');
 closeModal();
